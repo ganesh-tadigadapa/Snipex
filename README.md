@@ -1,79 +1,77 @@
-# SNIPEX — Every File. One Click.
+# Snipex
 
-Universal batch file converter. Drop up to 30 mixed files, pick one output format (or one per file), convert everything in one click, then download the files one by one or as a single ZIP.
+I kept running into the same annoying thing: needing a bunch of files in a different format (a few slides as PDF, a spreadsheet as CSV, some photos as WebP), and every online converter doing one file at a time, or asking me to sign up.
 
-## Run it locally
+So I built Snipex. Drop up to 30 files, pick a format, click once, download everything as a zip.
 
-Requirements: Python 3.11+, Node 20+, and **LibreOffice** for office formats (`brew install --cask libreoffice` on macOS, `apt install libreoffice` on Debian/Ubuntu).
+![Snipex home](docs/screenshots/home.png)
+
+## What it does
+
+- Converts **documents, slides, spreadsheets, images, PDFs and data files** (110 routes across 25 input formats)
+- Handles a **mixed batch** in one go: one format for everything, or a different one per file
+- Only shows formats your files can actually become, so you never get a broken output
+- Has a separate **Tools** page: merge / split / compress PDF, images to PDF, resize and compress images
+- No account. Files get deleted automatically after an hour (or straight away with "Clear Session")
+
+| Picking a format | Done | Tools |
+|---|---|---|
+| ![](docs/screenshots/files.png) | ![](docs/screenshots/done.png) | ![](docs/screenshots/tools.png) |
+
+## Running it
+
+You need Python 3.11+, Node 20+ and LibreOffice. LibreOffice does the Word / PowerPoint / Excel conversions, and without it those formats just get hidden.
 
 ```bash
-# one-time setup
+# macOS: brew install --cask libreoffice
+# Ubuntu: sudo apt install libreoffice
+
 cd backend && python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ..
 cd frontend && npm install && cd ..
 
-./dev.sh            # API on :8000, UI on http://127.0.0.1:5173
+./dev.sh   # api on :8000, site on http://127.0.0.1:5173
 ```
 
-Production (one origin, one container): `docker build -t snipex . && docker run -p 8000:8000 snipex`.
-Alternatively, run `npm run build` in `frontend/`; FastAPI then serves `frontend/dist` automatically.
+There's also a `Dockerfile` if you want a single container (it builds the frontend and serves everything from one place).
+
+## How it's put together
+
+```
+backend/    FastAPI + the actual converters
+  app/engines/   one file per kind of conversion (office, images, pdf, text, data)
+  app/registry.py   every supported "X → Y" lives here
+  app/jobs.py      the queue: runs things in parallel, retries, cleans up
+frontend/   React + Tailwind + Framer Motion
+docs/       screenshots
+```
+
+A few things I cared about:
+
+- **Real conversions, tested.** `pytest` generates a sample of every format and runs every single conversion in the registry, checking the output is really what it claims to be (not just renamed).
+- **One bad file doesn't ruin the batch.** Each conversion runs in its own process with a timeout, and whatever succeeds is still downloadable.
+- **Speed.** LibreOffice is slow to start, so Office files are grouped per launch and images/PDFs run in a separate lane. A mixed 30-file batch takes about 4 seconds on my laptop.
+- **Uploads are checked properly.** The file's bytes have to match its extension, archives are checked for zip bombs, and filenames can't escape the temp folder.
 
 ## Tests
 
 ```bash
 cd backend
-.venv/bin/python -m pytest -q                      # every registry conversion + API end-to-end
-.venv/bin/python tests/e2e_ui.py /tmp/e2e          # real-browser UI run (needs ./dev.sh + `playwright install chromium`)
+.venv/bin/python -m pytest -q                 # every conversion + the API
+.venv/bin/python tests/e2e_ui.py /tmp/e2e     # clicks through the real UI (needs ./dev.sh running)
+.venv/bin/python tests/bench.py <samples>     # 30-file speed check
 ```
 
-`tests/test_conversions.py` generates a real sample of every input format, runs **every** conversion in the registry, and checks the output's actual file signature (not just its extension). A conversion that is not in the registry is never offered in the UI.
+## Settings
 
-## Architecture
+Everything is an environment variable: `SNIPEX_MAX_FILES` (30), `SNIPEX_MAX_FILE_MB` (100), `SNIPEX_MAX_BATCH_MB` (500), `SNIPEX_WORKERS`, `SNIPEX_OFFICE_WORKERS`, `SNIPEX_TIMEOUT`, `SNIPEX_RETENTION_S` (3600), `SNIPEX_RATE_LIMIT`, `SNIPEX_SCAN_COMMAND` (plug in a virus scanner like `clamdscan`).
 
-```
-frontend/ (React + TS + Tailwind v4 + Framer Motion + Lucide)
-   │  multipart upload (XHR, real upload progress) → poll batch status → download
-backend/app/
-   main.py         FastAPI routes, size limits, rate limiting, secure downloads
-   registry.py     central conversion registry: src, dst, engine, quality, notes, dependencies
-   validation.py   magic-byte / container checks, zip-bomb guard, safe filenames, defusedxml
-   jobs.py         batch queue: bounded parallelism, retries, cancel, ZIP, auto-cleanup
-   worker.py       isolated per-conversion process (timeout, rlimits, killable process group)
-   engines/
-     office.py     LibreOffice headless: DOC/DOCX/ODT/RTF, PPT/PPTX/ODP, XLS/XLSX/ODS
-     images.py     Pillow (+ MuPDF for SVG): format conversion, resize, compress, images→PDF
-     pdf.py        PyMuPDF: render pages, merge, split/extract, compress; pdf2docx for PDF→DOCX
-     text.py       TXT/MD/HTML/EPUB (MuPDF Story layout engine for →PDF; never runs scripts)
-     data.py       CSV/XLSX/JSON/XML
-```
+## Known limits
 
-### API
+- PDF → Word rebuilds the layout, so complicated pages can shift a bit. Scanned PDFs have no OCR.
+- HTML / EPUB → PDF keeps the text and structure but not fancy styling or images.
+- The job queue lives in memory, so this runs as a single server. Fine for me; it would need Redis/Celery to scale out.
+- No end-to-end encryption. Put it behind HTTPS if you host it.
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/formats` | Live registry: formats, conversions, limits, tools |
-| POST | `/api/conversions` | `files` (repeated) + `target` *or* `targets` (JSON list, one per file) → batch + secret token |
-| GET | `/api/conversions/{id}` | Batch + per-file status, progress, ETA |
-| GET | `/api/conversions/{id}/files/{file_id}` | Download one output |
-| GET | `/api/conversions/{id}/download-zip` | All successful outputs as one ZIP |
-| POST | `/api/conversions/{id}/cancel` | Cancel (kills running workers) |
-| DELETE | `/api/conversions/{id}` | Delete batch and its files now |
-| POST | `/api/tools/{merge-pdf,split-pdf,compress-pdf,images-to-pdf,resize-images,compress-images}` | Advanced tools (same batch model) |
+## Built with
 
-Every batch endpoint requires the batch token (`X-Batch-Token` header or `?token=`).
-
-### Adding a format
-
-Write an engine function `fn(src, out_dir, stem, dst, options) -> list[Path]`, `register()` it in `registry.py`, add a sample to `tests/samples.py`, and run the tests. The UI picks it up automatically.
-
-## Configuration (env vars)
-
-`SNIPEX_MAX_FILES` (30), `SNIPEX_MAX_FILE_MB` (100), `SNIPEX_MAX_BATCH_MB` (500), `SNIPEX_WORKERS` (CPU-based, 2–4), `SNIPEX_TIMEOUT` (180 s), `SNIPEX_MAX_ATTEMPTS` (2), `SNIPEX_RETENTION_S` (3600), `SNIPEX_RATE_LIMIT` (20 requests/min/IP), `SNIPEX_STORAGE`, `SNIPEX_SOFFICE`, `SNIPEX_SCAN_COMMAND` (e.g. `clamdscan --no-summary`; exit code 1 rejects the file), `SNIPEX_CORS`.
-
-## Honest limits
-
-- **Queue is in-process.** Concurrency is bounded and every conversion runs in its own process, but batches live in one server's memory. To run multiple API instances, put `JobManager._run_task` behind Celery/RQ with Redis. The HTTP API and data model stay the same.
-- **No accounts.** History and presets are kept in the browser (localStorage). There is no Sign In, by design: core conversion needs no registration.
-- **Malware scanning** is a hook (`SNIPEX_SCAN_COMMAND`) and is off by default.
-- **Memory limits** (`RLIMIT_AS`) are enforced on Linux only; macOS ignores them. CPU-time and file-size limits plus the wall-clock timeout apply everywhere.
-- **Fidelity:** PDF→DOCX rebuilds the layout, so complex pages can shift. HTML/EPUB→PDF render text and structure without external CSS or images. Scanned PDFs have no OCR. Spreadsheet formulas export their last saved values.
-- **No end-to-end encryption.** Use TLS in front of the server. Files are deleted after the retention window, or immediately via “Clear Session”.
+FastAPI, LibreOffice, PyMuPDF, pdf2docx, Pillow, openpyxl, React, Tailwind, Framer Motion, Lucide.
