@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, ArrowRight, ArrowUpDown, Bookmark, Check, CircleDashed, Layers, ListChecks, Loader2, Search,
+  AlertTriangle, ArrowRight, ArrowUpDown, Bookmark, Check, CircleDashed, Loader2, Search,
   Sparkles, Trash2, X, XCircle,
 } from 'lucide-react'
 import { cancelBatch, deleteBatch, uploadBatch, type Batch, type Capabilities, type TaskStatus } from '../lib/api'
@@ -36,9 +36,10 @@ function defaultTarget(targets: string[]): string {
 interface Props {
   caps: Capabilities
   onHistoryChange: () => void
+  onActiveChange?: (active: boolean) => void
 }
 
-export function Converter({ caps, onHistoryChange }: Props) {
+export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
   const toast = useToast()
   const [files, setFiles] = useState<LocalFile[]>([])
   const [mode, setMode] = useState<Mode>('single')
@@ -55,6 +56,9 @@ export function Converter({ caps, onHistoryChange }: Props) {
   const [presetName, setPresetName] = useState('')
   const abortRef = useRef<AbortController | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+
+  const active = files.length > 0 || phase !== 'select'
+  useEffect(() => onActiveChange?.(active), [active, onActiveChange])
 
   // Keep the converter in view when it switches to progress / results.
   useEffect(() => {
@@ -272,23 +276,10 @@ export function Converter({ caps, onHistoryChange }: Props) {
 
   if (!files.length) {
     return (
-      <Shell innerRef={rootRef}>
-        <DropZone
-          onFiles={addFiles}
-          subtitle={
-            <>
-              or <span className="text-lavender underline decoration-violet/50 underline-offset-4">browse</span> to choose up to{' '}
-              {caps.limits.max_files} files at once
-            </>
-          }
-        >
-          <div className="relative mt-7 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-fg-3">
-            <span className="flex items-center gap-1.5"><Layers className="size-3.5" /> {caps.inputs.length} input formats</span>
-            <span className="flex items-center gap-1.5"><ListChecks className="size-3.5" /> Up to {caps.limits.max_files} files per batch</span>
-            <span className="flex items-center gap-1.5"><CircleDashed className="size-3.5" /> {caps.limits.max_file_mb} MB per file</span>
-          </div>
-        </DropZone>
-      </Shell>
+      <DropZone orb onFiles={addFiles}>
+        Up to {caps.limits.max_files} files <span className="mx-1.5 text-fg-3">•</span> {caps.inputs.length} formats{' '}
+        <span className="mx-1.5 text-fg-3">•</span> Batch convert
+      </DropZone>
     )
   }
 
@@ -308,7 +299,7 @@ export function Converter({ caps, onHistoryChange }: Props) {
         {phase === 'select' && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="mb-4 rounded-2xl border border-line bg-bg-2/60 p-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex flex-wrap items-end justify-between gap-4">
                 <div className="flex-1">
                   <p className="mb-2 text-xs font-medium tracking-wide text-fg-3 uppercase">Output</p>
                   <div role="radiogroup" aria-label="Conversion mode" className="inline-flex rounded-xl border border-line bg-card p-1">
@@ -331,7 +322,7 @@ export function Converter({ caps, onHistoryChange }: Props) {
                     ))}
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                   {mode === 'single' && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm whitespace-nowrap text-fg-2">Convert to</span>
