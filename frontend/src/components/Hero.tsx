@@ -42,16 +42,16 @@ export function Hero({ caps, error, onRetry, onHistoryChange }: Props) {
   const [active, setActive] = useState(false)
 
   return (
-    <section id="convert" className="relative px-3 pt-20 pb-10 sm:px-6 sm:pt-24">
+    <section id="convert" className="hero-frame relative flex min-h-[100svh] flex-col overflow-hidden">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[900px] ambient opacity-60" aria-hidden />
-      <div className="hero-frame relative mx-auto max-w-7xl overflow-hidden rounded-[28px] border border-line sm:rounded-[36px]">
+      <div className="relative flex w-full flex-1 flex-col">
         {/* Brand */}
-        <div className="flex justify-center pt-8 sm:pt-10">
+        <div className="flex justify-center pt-16 sm:pt-[72px]">
           <Logo size="lg" />
         </div>
 
         <div
-          className={`grid items-center gap-10 px-4 pt-8 pb-12 sm:px-10 lg:gap-6 lg:px-14 ${
+          className={`mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-4 pt-6 pb-10 sm:px-10 lg:gap-6 lg:px-14 ${
             active ? 'grid-cols-1' : 'lg:grid-cols-[1fr_1.05fr] lg:pt-4 lg:pb-16'
           }`}
         >
@@ -73,7 +73,7 @@ export function Hero({ caps, error, onRetry, onHistoryChange }: Props) {
             )}
             <h1
               className={`font-bold tracking-[-0.04em] ${
-                active ? 'text-3xl leading-tight sm:text-4xl' : 'mt-7 text-[46px] leading-[1.02] sm:text-7xl lg:text-[84px]'
+                active ? 'text-3xl leading-tight sm:text-4xl' : 'mt-6 text-[46px] leading-[1.02] sm:text-7xl lg:text-[clamp(56px,7.4svh,84px)]'
               }`}
             >
               Convert Files{active ? ' ' : <br />}
@@ -151,7 +151,8 @@ export function Hero({ caps, error, onRetry, onHistoryChange }: Props) {
         </div>
 
         {/* Frame footer */}
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-line px-6 py-5 text-sm sm:flex-row sm:px-10">
+        <div className="border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-5 text-sm sm:flex-row sm:px-10 lg:px-14">
           <p className="flex items-center gap-3">
             <span className="font-semibold tracking-[0.14em]">SNIPEX</span>
             <span className="text-fg-3">v1.0.0</span>
@@ -163,6 +164,7 @@ export function Hero({ caps, error, onRetry, onHistoryChange }: Props) {
               <GithubMark /> GitHub
             </a>
           </nav>
+        </div>
         </div>
       </div>
     </section>
