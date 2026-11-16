@@ -19,7 +19,7 @@ const NAV = [
   ['FAQ', '#faq'],
 ] as const
 
-export function Nav() {
+export function Nav({ focused = false }: { focused?: boolean }) {
   const [theme, setT] = useState(getTheme)
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -38,7 +38,7 @@ export function Nav() {
     <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${scrolled || open ? 'glass border-b border-line' : 'border-b border-transparent'}`}>
       <nav className="wrap grid h-[68px] grid-cols-[1fr_auto] items-center md:grid-cols-[1fr_auto_1fr]" aria-label="Main">
         <Logo />
-        <ul className="hidden items-center gap-0.5 rounded-full border border-line bg-card/40 p-1 backdrop-blur-md md:flex">
+        <ul aria-hidden={focused || undefined} className={`hidden items-center gap-0.5 rounded-full border border-line bg-card/40 p-1 backdrop-blur-md transition-opacity duration-300 md:flex ${focused ? 'invisible opacity-0' : ''}`}>
           {NAV.map(([label, href]) => (
             <li key={href}>
               <a href={href} className="block rounded-full px-3.5 py-1.5 text-[13.5px] text-fg-2 transition-colors hover:bg-white/[0.06] hover:text-fg light:hover:bg-black/[0.04]">{label}</a>
@@ -49,10 +49,10 @@ export function Nav() {
           <button onClick={toggle} className="grid size-9 place-items-center rounded-full border border-line text-fg-2 transition-colors hover:border-line-2 hover:text-fg" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
             {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
-          <a href="#convert" className="btn-primary hidden h-9 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold sm:inline-flex">
+          <a href="#convert" className={`btn-primary hidden h-9 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold ${focused ? '' : 'sm:inline-flex'}`}>
             Get Started <ArrowRight className="size-3.5" />
           </a>
-          <button onClick={() => setOpen(!open)} className="grid size-9 place-items-center rounded-full border border-line text-fg-2 md:hidden" aria-label="Toggle menu" aria-expanded={open}>
+          <button onClick={() => setOpen(!open)} className={`size-9 place-items-center rounded-full border border-line text-fg-2 md:hidden ${focused ? 'hidden' : 'grid'}`} aria-label="Toggle menu" aria-expanded={open}>
             {open ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
         </div>

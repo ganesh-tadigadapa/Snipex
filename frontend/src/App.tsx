@@ -9,6 +9,8 @@ export default function App() {
   const [caps, setCaps] = useState<Capabilities | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [historyVersion, setHistoryVersion] = useState(0)
+  // While files are being converted the page is a focused converter: no marketing sections.
+  const [focused, setFocused] = useState(false)
   const bumpHistory = useCallback(() => setHistoryVersion((v) => v + 1), [])
 
   const load = useCallback(() => {
@@ -22,18 +24,21 @@ export default function App() {
   return (
     <ToastProvider>
       <div id="top" className="relative min-h-screen">
-        <Nav />
+        <Nav focused={focused} />
         <main>
-          <Hero caps={caps} error={error} onRetry={load} onHistoryChange={bumpHistory} />
-
-          <RecentHistory version={historyVersion} onChange={bumpHistory} />
-          <SupportedFormats caps={caps} />
-          <Features />
-          <Tools caps={caps} onHistoryChange={bumpHistory} />
-          <HowItWorks />
-          <FAQ caps={caps} />
+          <Hero caps={caps} error={error} onRetry={load} onHistoryChange={bumpHistory} onFocusChange={setFocused} />
+          {!focused && (
+            <>
+              <RecentHistory version={historyVersion} onChange={bumpHistory} />
+              <SupportedFormats caps={caps} />
+              <Features />
+              <Tools caps={caps} onHistoryChange={bumpHistory} />
+              <HowItWorks />
+              <FAQ caps={caps} />
+            </>
+          )}
         </main>
-        <Footer />
+        {!focused && <Footer />}
       </div>
     </ToastProvider>
   )
