@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pillow
+pymupdf
+pdf2docx
+openpyxl
+python-docx
+markdown
+beautifulsoup4
+defusedxml
+# tests
+pytest
+httpx
+python-pptx
