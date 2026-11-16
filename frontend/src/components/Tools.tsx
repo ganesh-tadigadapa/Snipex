@@ -74,7 +74,7 @@ export function Tools({ caps, onHistoryChange }: { caps: Capabilities | null; on
   const activeTool = GROUPS.flatMap((g) => g.tools).find((t) => t.id === active) ?? null
 
   return (
-    <section id="tools" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+    <section id="tools" className="wrap py-28">
       <SectionHeading eyebrow="Advanced tools" title="Precision tools for everyday files" sub="Merge, split, compress and resize, each one running the same engines as the converter." />
       <div className="grid gap-4 md:grid-cols-2">
         {GROUPS.map((g) => (

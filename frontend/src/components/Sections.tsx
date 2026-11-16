@@ -7,6 +7,7 @@ import {
 import { deleteBatch, fileUrl, zipUrl, type Capabilities } from '../lib/api'
 import { CATEGORY_LABEL, CATEGORY_ORDER, bytes } from '../lib/format'
 import { getTheme, history, setTheme, type HistoryEntry } from '../lib/storage'
+import { GITHUB_URL, GithubMark } from './Hero'
 import { Logo, SectionHeading, useToast } from './ui'
 
 const NAV = [
@@ -14,6 +15,7 @@ const NAV = [
   ['Supported Formats', '#formats'],
   ['Features', '#features'],
   ['How It Works', '#how'],
+  ['Tools', '#tools'],
   ['FAQ', '#faq'],
 ] as const
 
@@ -34,32 +36,31 @@ export function Nav() {
   }
   return (
     <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${scrolled || open ? 'glass border-b border-line' : 'border-b border-transparent'}`}>
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6" aria-label="Main">
-        <Logo className={`transition-opacity duration-300 ${scrolled || open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} />
-        <ul className="hidden items-center gap-1 md:flex">
+      <nav className="wrap grid h-[68px] grid-cols-[1fr_auto] items-center md:grid-cols-[1fr_auto_1fr]" aria-label="Main">
+        <Logo />
+        <ul className="hidden items-center gap-0.5 rounded-full border border-line bg-card/40 p-1 backdrop-blur-md md:flex">
           {NAV.map(([label, href]) => (
             <li key={href}>
-              <a href={href} className="rounded-lg px-3 py-2 text-sm text-fg-2 transition-colors hover:text-fg">{label}</a>
+              <a href={href} className="block rounded-full px-3.5 py-1.5 text-[13.5px] text-fg-2 transition-colors hover:bg-white/[0.06] hover:text-fg light:hover:bg-black/[0.04]">{label}</a>
             </li>
           ))}
         </ul>
-        <div className="flex items-center gap-2">
-          <button onClick={toggle} className="grid size-9 place-items-center rounded-lg text-fg-2 transition-colors hover:bg-card hover:text-fg" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={toggle} className="grid size-9 place-items-center rounded-full border border-line text-fg-2 transition-colors hover:border-line-2 hover:text-fg" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
             {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
-          <a href="#tools" className="hidden rounded-lg px-3 py-2 text-sm text-fg-2 transition-colors hover:text-fg sm:block">Tools</a>
-          <a href="#convert" className="btn-primary hidden h-9 items-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold sm:inline-flex">
+          <a href="#convert" className="btn-primary hidden h-9 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold sm:inline-flex">
             Get Started <ArrowRight className="size-3.5" />
           </a>
-          <button onClick={() => setOpen(!open)} className="grid size-9 place-items-center rounded-lg text-fg-2 hover:bg-card md:hidden" aria-label="Toggle menu" aria-expanded={open}>
-            {open ? <X className="size-5" /> : <Menu className="size-5" />}
+          <button onClick={() => setOpen(!open)} className="grid size-9 place-items-center rounded-full border border-line text-fg-2 md:hidden" aria-label="Toggle menu" aria-expanded={open}>
+            {open ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
         </div>
       </nav>
       <AnimatePresence>
         {open && (
-          <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden px-4 md:hidden">
-            {[...NAV, ['Tools', '#tools'] as const].map(([label, href]) => (
+          <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="wrap overflow-hidden md:hidden">
+            {NAV.map(([label, href]) => (
               <li key={href}><a onClick={() => setOpen(false)} href={href} className="block border-t border-line py-3 text-sm text-fg-2">{label}</a></li>
             ))}
             <li className="border-t border-line py-3">
@@ -75,7 +76,7 @@ export function Nav() {
 export function SupportedFormats({ caps }: { caps: Capabilities | null }) {
   const [active, setActive] = useState<string | null>(null)
   return (
-    <section id="formats" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+    <section id="formats" className="wrap py-28">
       <SectionHeading
         eyebrow="Supported formats"
         title={<>Every route here is <span className="text-gradient">real and tested</span></>}
@@ -146,7 +147,7 @@ const FEATURES = [
 
 export function Features() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+    <section id="features" className="wrap py-28">
       <SectionHeading eyebrow="Features" title="Built for the files you actually have" sub="Real conversions, done properly, with no fake progress bars." />
       <div className="grid gap-px overflow-hidden rounded-3xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((f, i) => (
@@ -179,7 +180,7 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+    <section id="how" className="wrap py-28">
       <SectionHeading eyebrow="How it works" title="Four steps. No account." />
       <ol className="relative grid gap-4 md:grid-cols-4">
         <div className="absolute top-7 right-[12%] left-[12%] hidden h-px bg-gradient-to-r from-transparent via-violet/50 to-transparent md:block" aria-hidden />
@@ -223,7 +224,7 @@ export function RecentHistory({ version, onChange }: { version: number; onChange
   }
 
   return (
-    <section id="history" className="mx-auto max-w-4xl px-4 pt-6 pb-10 sm:px-6">
+    <section id="history" className="wrap max-w-5xl pt-10 pb-4">
       <div className="rounded-2xl border border-line bg-card/50 p-4 sm:p-5">
         <div className="mb-3 flex items-center justify-between">
           <p className="flex items-center gap-2 text-sm font-semibold"><HistoryIcon className="size-4 text-lavender" /> Recent conversions</p>
@@ -280,7 +281,7 @@ export function FAQ({ caps }: { caps: Capabilities | null }) {
   ]
   const [open, setOpen] = useState<number | null>(0)
   return (
-    <section id="faq" className="mx-auto max-w-3xl px-4 py-24 sm:px-6">
+    <section id="faq" className="wrap max-w-4xl py-28">
       <SectionHeading eyebrow="FAQ" title="Questions, answered" />
       <div className="divide-y divide-line rounded-2xl border border-line bg-card/50">
         {items.map(([q, a], i) => (
@@ -310,7 +311,7 @@ export function FAQ({ caps }: { caps: Capabilities | null }) {
 export function Footer() {
   return (
     <footer className="border-t border-line">
-      <div className="relative mx-auto max-w-6xl overflow-hidden px-4 py-20 text-center sm:px-6">
+      <div className="relative wrap overflow-hidden py-24 text-center">
         <div className="ambient pointer-events-none absolute inset-0 rotate-180 opacity-70" aria-hidden />
         <p className="relative text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           Whatever your file. Whatever your format.
@@ -321,9 +322,18 @@ export function Footer() {
           Start converting <ArrowRight className="size-4" />
         </a>
       </div>
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 border-t border-line px-4 py-6 text-sm text-fg-3 sm:flex-row sm:px-6">
-        <Logo className="text-fg" />
-        <p>Every File. One Click. Files are deleted automatically.</p>
+      <div className="wrap flex flex-col items-center justify-between gap-4 border-t border-line py-6 text-sm text-fg-3 sm:flex-row">
+        <div className="flex items-center gap-3">
+          <Logo className="text-fg" />
+          <span className="text-fg-3">v1.0.0</span>
+        </div>
+        <nav className="flex items-center gap-6" aria-label="Footer">
+          <a href="#formats" className="transition-colors hover:text-fg">Supported Formats</a>
+          <a href="#faq" className="transition-colors hover:text-fg">Privacy</a>
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-fg">
+            <GithubMark className="size-4" /> GitHub
+          </a>
+        </nav>
       </div>
     </footer>
   )
