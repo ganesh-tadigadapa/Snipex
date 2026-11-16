@@ -34,13 +34,18 @@ def _resolve(engine: str):
     return getattr(importlib.import_module(f"app.engines.{module}"), func)
 
 
-def run(spec: dict) -> list[str]:
+def run(spec: dict) -> list[str] | dict[str, list[str]]:
     out_dir = Path(spec["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
-    inputs = [Path(p) for p in spec["inputs"]]
-    stem = spec["stem"]
     options = spec.get("options") or {}
     op = spec["op"]
+    inputs = [Path(p) for p in spec.get("inputs", [])]
+    stem = spec.get("stem", "")
+    if op == "office_group":
+        from app.engines.office import convert_group
+
+        results = convert_group(spec["items"], spec["dst"], {**options, "_work_dir": str(out_dir)})
+        return {k: [str(p) for p in v] for k, v in results.items()}  # type: ignore[return-value]
     if op == "convert":
         from app import registry
 
