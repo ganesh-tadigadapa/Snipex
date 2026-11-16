@@ -29,6 +29,12 @@ type SortKey = 'added' | 'name' | 'type' | 'size'
 
 const PREFERRED = ['pdf', 'docx', 'xlsx', 'png', 'jpg', 'csv', 'json', 'txt']
 
+/** Lower is better; formats outside the preferred list come after all preferred ones. */
+function rank(fmt: string): number {
+  const i = PREFERRED.indexOf(fmt)
+  return i === -1 ? PREFERRED.length : i
+}
+
 function defaultTarget(targets: string[]): string {
   return PREFERRED.find((p) => targets.includes(p)) ?? targets[0] ?? ''
 }
@@ -87,7 +93,7 @@ export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
     const counts = new Map<string, number>()
     for (const f of supported) for (const t of targetsFor(f.format, caps)) counts.set(t, (counts.get(t) ?? 0) + 1)
     return [...counts.entries()]
-      .sort((a, b) => b[1] - a[1] || PREFERRED.indexOf(a[0]) - PREFERRED.indexOf(b[0]) || a[0].localeCompare(b[0]))
+      .sort((a, b) => b[1] - a[1] || rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0]))
       .map(([t, n]) => ({ value: t, label: labelOf(t, caps), hint: n === supported.length ? 'all files' : `${n} of ${supported.length} files` }))
   }, [supported, caps])
 
@@ -474,7 +480,7 @@ export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
       )}
 
       {/* Files */}
-      <ul className="max-h-[420px] divide-y divide-line overflow-y-auto overscroll-contain rounded-2xl border border-line bg-black/20 light:bg-white/60" aria-label="Selected files">
+      <ul className="max-h-[max(180px,calc(100svh-560px))] divide-y divide-line overflow-y-auto overscroll-contain rounded-2xl border border-line bg-black/20 light:bg-white/60" aria-label="Selected files">
         <AnimatePresence initial={false}>
           {visible.map((f) => {
             const st = statusByKey.get(f.key)
@@ -542,8 +548,8 @@ export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
         {!visible.length && <li className="py-8 text-center text-sm text-fg-3">No files match “{query}”.</li>}
       </ul>
 
-      {/* Action / progress */}
-      <div className="mt-4">
+      {/* Action / progress: pinned to the bottom of the screen so it is always reachable */}
+      <div className="sticky bottom-0 z-10 -mx-5 mt-4 rounded-b-[28px] bg-gradient-to-t from-[#0a0910] from-70% to-transparent px-5 pt-3 pb-1 sm:-mx-7 sm:px-7 light:from-white">
         {busy ? (
           <OverallProgress phase={phase} batch={batch} uploadFraction={uploadFraction} count={submitted.length} onCancel={cancel} />
         ) : (
