@@ -189,7 +189,8 @@ def _created(batch) -> JSONResponse:
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "libreoffice": settings.soffice is not None, "workers": settings.max_workers}
+    return {"status": "ok", "libreoffice": settings.soffice is not None,
+            "workers": settings.max_workers, "office_workers": settings.office_workers}
 
 
 @app.get("/api/formats")
@@ -225,7 +226,9 @@ async def create_conversion(request: Request):
                 tasks.append(_rejected_task(f, target))
                 continue
             task = Task(uuid.uuid4().hex[:12], "convert", [f], target, _stem(f.name))
-            if not target or registry.get(f.format, target) is None:
+            conv = registry.get(f.format, target) if target else None
+            task.office = bool(conv and conv.engine.startswith("office:"))
+            if conv is None:
                 task.status = SKIPPED
                 task.error = f"{FORMATS[f.format].label} cannot be converted to {target.upper() if target else 'that format'}"
             tasks.append(task)
