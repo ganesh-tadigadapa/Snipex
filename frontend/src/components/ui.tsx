@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useId, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle, CheckCircle2, ChevronDown, File, FileArchive, FileCode2, FileImage, FileSpreadsheet,
@@ -6,21 +6,31 @@ import {
 } from 'lucide-react'
 import type { Category } from '../lib/api'
 
-export function Logo({ className = '' }: { className?: string }) {
+export function OrbitMark({ className = 'size-7' }: { className?: string }) {
+  const id = useId().replace(/:/g, '')
   return (
-    <a href="#top" className={`flex items-center gap-2.5 font-semibold tracking-tight ${className}`} aria-label="SNIPEX home">
-      <svg viewBox="0 0 32 32" className="size-7 shrink-0" aria-hidden>
-        <defs>
-          <linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#A855F7" />
-            <stop offset="1" stopColor="#7C3AED" />
-          </linearGradient>
-        </defs>
-        <rect width="32" height="32" rx="8" fill="url(#logo-g)" />
-        <path d="M10 20.5c1.2 1.3 3 2 5.3 2 3 0 4.7-1.4 4.7-3.4 0-4.4-9.4-2.6-9.4-7 0-2 1.8-3.6 4.6-3.6 2 0 3.6.6 4.7 1.8"
-          fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-      <span className="text-[15px] tracking-[0.14em]">SNIPEX</span>
+    <svg viewBox="0 0 40 40" className={`shrink-0 ${className}`} aria-hidden>
+      <defs>
+        <linearGradient id={`og-${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#F5EDFF" />
+          <stop offset="0.45" stopColor="#B57BFF" />
+          <stop offset="1" stopColor="#6D28D9" />
+        </linearGradient>
+        <filter id={`ob-${id}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2.4" />
+        </filter>
+      </defs>
+      <ellipse cx="20" cy="20" rx="14.5" ry="9.5" transform="rotate(-24 20 20)" fill="none" stroke="#8B5CF6" strokeWidth="6" filter={`url(#ob-${id})`} opacity="0.9" />
+      <ellipse cx="20" cy="20" rx="14.5" ry="9.5" transform="rotate(-24 20 20)" fill="none" stroke={`url(#og-${id})`} strokeWidth="4.2" />
+    </svg>
+  )
+}
+
+export function Logo({ className = '', size = 'md' }: { className?: string; size?: 'md' | 'lg' }) {
+  return (
+    <a href="#top" className={`flex items-center gap-3 font-semibold ${className}`} aria-label="SNIPEX home">
+      <OrbitMark className={size === 'lg' ? 'size-11' : 'size-8'} />
+      <span className={size === 'lg' ? 'text-[26px] tracking-[0.22em]' : 'text-[15px] tracking-[0.2em]'}>SNIPEX</span>
     </a>
   )
 }
