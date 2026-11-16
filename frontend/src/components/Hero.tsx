@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, FileText, Image as ImageIcon, LayoutGrid, Lock, RefreshCw } from 'lucide-react'
+import { AlertTriangle, ChevronDown, FileText, Image as ImageIcon, LayoutGrid, Lock, RefreshCw } from 'lucide-react'
 import type { Capabilities } from '../lib/api'
 import { Converter } from './Converter'
-import { Logo } from './ui'
 
-const GITHUB_URL = 'https://github.com/ganesh-tadigadapa/Snipex'
+export const GITHUB_URL = 'https://github.com/ganesh-tadigadapa/Snipex'
 
 function LetterGlyph({ letter }: { letter: string }) {
   return (
@@ -21,6 +20,7 @@ const TILES = [
   { label: 'PPTX', icon: <LetterGlyph letter="P" /> },
   { label: 'XLSX', icon: <LetterGlyph letter="X" /> },
   { label: 'JPG', icon: <ImageIcon className="size-[22px]" strokeWidth={1.6} /> },
+  { label: 'More', icon: <LayoutGrid className="size-[20px]" strokeWidth={1.6} /> },
 ]
 
 export function GithubMark({ className = 'size-[18px]' }: { className?: string }) {
@@ -38,135 +38,144 @@ interface Props {
   onHistoryChange: () => void
 }
 
+const ease = [0.22, 1, 0.36, 1] as const
+
 export function Hero({ caps, error, onRetry, onHistoryChange }: Props) {
   const [active, setActive] = useState(false)
 
   return (
     <section id="convert" className="hero-frame relative flex min-h-[100svh] flex-col overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[900px] ambient opacity-60" aria-hidden />
-      <div className="relative flex w-full flex-1 flex-col">
-        {/* Brand */}
-        <div className="flex justify-center pt-16 sm:pt-[72px]">
-          <Logo size="lg" />
-        </div>
+      <div className="grid-lines pointer-events-none absolute inset-0 opacity-25" aria-hidden />
 
-        <div
-          className={`mx-auto grid w-full max-w-7xl flex-1 items-center gap-10 px-4 pt-6 pb-10 sm:px-10 lg:gap-6 lg:px-14 ${
-            active ? 'grid-cols-1' : 'lg:grid-cols-[1fr_1.05fr] lg:pt-4 lg:pb-16'
-          }`}
+      <div
+        className={`wrap relative grid flex-1 items-center gap-12 pt-28 pb-16 lg:gap-10 ${
+          active ? 'grid-cols-1 content-start lg:pt-32' : 'lg:grid-cols-2 lg:pt-24 lg:pb-20'
+        }`}
+      >
+        {/* Copy */}
+        <motion.div
+          layout="position"
+          className={active ? 'text-center' : 'mx-auto w-full max-w-xl text-center lg:order-2 lg:mx-0 lg:justify-self-end lg:text-left'}
         >
-          {/* Copy */}
-          <motion.div
-            layout="position"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className={active ? 'text-center' : 'text-center lg:order-2 lg:pl-6 lg:text-left'}
-          >
+          <AnimatePresence initial={false} mode="popLayout">
             {!active && (
-              <a
+              <motion.a
+                key="badge"
                 href="#faq"
-                className="inline-flex items-center gap-2.5 rounded-full border border-line-2 bg-card/50 px-4 py-2 text-[13px] text-fg-2 backdrop-blur transition-colors hover:border-violet/50 hover:text-fg sm:text-sm"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6, ease }}
+                className="inline-flex items-center gap-2 rounded-full border border-line-2 bg-card/40 py-1.5 pr-4 pl-1.5 text-[13px] text-fg-2 backdrop-blur transition-colors hover:border-violet/50 hover:text-fg"
               >
-                <Lock className="size-3.5 text-fg" strokeWidth={2.2} /> Your files are private &amp; auto-deleted
-              </a>
+                <span className="grid size-6 place-items-center rounded-full bg-violet/20 text-lavender">
+                  <Lock className="size-3" strokeWidth={2.4} />
+                </span>
+                Private by design · files auto-delete
+              </motion.a>
             )}
-            <h1
-              className={`font-bold tracking-[-0.04em] ${
-                active ? 'text-3xl leading-tight sm:text-4xl' : 'mt-6 text-[46px] leading-[1.02] sm:text-7xl lg:text-[clamp(56px,7.4svh,84px)]'
-              }`}
-            >
-              Convert Files{active ? ' ' : <br />}
-              <span className="text-gradient-hero">Effortlessly.</span>
-            </h1>
-            <AnimatePresence initial={false}>
-              {!active && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }}>
-                  <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-fg-2 sm:text-lg lg:mx-0">
-                    Documents, presentations, spreadsheets, images and more.
-                    <br className="hidden sm:block" /> Convert multiple files in one go.
-                  </p>
-                  <div className="mt-9 flex flex-wrap justify-center gap-2.5 sm:gap-3 lg:justify-start xl:flex-nowrap">
-                    {TILES.map((t, i) => (
-                      <motion.a
-                        key={t.label}
-                        href="#formats"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.25 + i * 0.05 }}
-                        className="format-tile flex size-[70px] flex-col items-center justify-center gap-2 rounded-2xl text-fg sm:size-[78px]"
-                        aria-label={`${t.label} conversions`}
-                      >
-                        {t.icon}
-                        <span className="text-[12px] font-medium tracking-wide text-fg-2 sm:text-[13px]">{t.label}</span>
-                      </motion.a>
-                    ))}
-                    <motion.a
-                      href="#formats"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.25 + TILES.length * 0.05 }}
-                      className="format-tile flex size-[70px] flex-col items-center justify-center gap-2 rounded-2xl text-fg sm:size-[78px]"
-                    >
-                      <LayoutGrid className="size-[20px]" strokeWidth={1.6} />
-                      <span className="text-[12px] font-medium text-fg-2 sm:text-[13px]">+ More</span>
-                    </motion.a>
-                  </div>
-                  {caps && (
-                    <p className="mt-7 text-[13px] text-fg-3">
-                      {caps.conversions.length} tested conversion routes <span className="mx-1.5">·</span> No sign-up{' '}
-                      <span className="mx-1.5">·</span> Deleted after {caps.limits.retention_minutes} min
-                    </p>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+          </AnimatePresence>
 
-          {/* Converter */}
-          <motion.div
+          <motion.h1
             layout="position"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className={active ? 'mx-auto w-full max-w-4xl' : 'lg:order-1'}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.05, ease }}
+            className={`font-bold tracking-[-0.045em] ${
+              active ? 'text-3xl leading-tight sm:text-[40px]' : 'mt-7 text-[48px] leading-[0.98] sm:text-7xl lg:text-[clamp(60px,7.6svh,88px)]'
+            }`}
           >
-            {caps ? (
-              <Converter caps={caps} onHistoryChange={onHistoryChange} onActiveChange={setActive} />
-            ) : error ? (
-              <div className="mx-auto max-w-md rounded-[28px] border border-danger/30 bg-card/80 p-10 text-center">
-                <AlertTriangle className="mx-auto mb-3 size-8 text-danger" />
-                <p className="font-semibold">{error}</p>
-                <p className="mt-1 text-sm text-fg-2">Make sure the SNIPEX API is running, then try again.</p>
-                <button onClick={onRetry} className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-card-2 px-4 text-sm font-medium hover:border-line-2">
-                  <RefreshCw className="size-4" /> Retry
-                </button>
-              </div>
-            ) : (
-              <div className="mx-auto aspect-square w-full max-w-[540px] p-[7%]" aria-busy="true" aria-label="Loading converter">
-                <div className="skeleton size-full rounded-full" />
-              </div>
-            )}
-          </motion.div>
-        </div>
+            Convert Files{active ? ' ' : <br />}
+            <span className="text-gradient-hero hero-glow-text">Effortlessly.</span>
+          </motion.h1>
 
-        {/* Frame footer */}
-        <div className="border-t border-line">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-5 text-sm sm:flex-row sm:px-10 lg:px-14">
-          <p className="flex items-center gap-3">
-            <span className="font-semibold tracking-[0.14em]">SNIPEX</span>
-            <span className="text-fg-3">v1.0.0</span>
-          </p>
-          <nav className="flex items-center gap-7 text-fg-2" aria-label="Hero footer">
-            <a href="#formats" className="transition-colors hover:text-fg">Supported Formats</a>
-            <a href="#faq" className="transition-colors hover:text-fg">Privacy</a>
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="flex items-center gap-2 transition-colors hover:text-fg">
-              <GithubMark /> GitHub
-            </a>
-          </nav>
-        </div>
-        </div>
+          <AnimatePresence initial={false}>
+            {!active && (
+              <motion.div key="details" exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}>
+                <motion.p
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, delay: 0.12, ease }}
+                  className="mx-auto mt-6 max-w-[30rem] text-[17px] leading-relaxed text-pretty text-fg-2 lg:mx-0"
+                >
+                  Documents, presentations, spreadsheets, images and more. Drop up to {caps?.limits.max_files ?? 30} files and convert
+                  them all in one go.
+                </motion.p>
+
+                <div className="mx-auto mt-10 hidden max-w-[30rem] grid-cols-6 gap-2.5 sm:grid sm:gap-3 lg:mx-0 lg:max-w-none">
+                  {TILES.map((t, i) => (
+                    <motion.a
+                      key={t.label}
+                      href="#formats"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.2 + i * 0.05, ease }}
+                      className="format-tile flex aspect-square flex-col items-center justify-center gap-1.5 rounded-2xl text-fg sm:gap-2"
+                      aria-label={t.label === 'More' ? 'All supported formats' : `${t.label} conversions`}
+                    >
+                      {t.icon}
+                      <span className="text-[10.5px] font-medium tracking-wide text-fg-2 sm:text-[12px]">{t.label === 'More' ? '+ More' : t.label}</span>
+                    </motion.a>
+                  ))}
+                </div>
+
+                <motion.dl
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.55 }}
+                  className="mx-auto mt-10 hidden max-w-[30rem] grid-cols-3 divide-x sm:grid lg:max-w-none divide-line border-t border-line pt-6 lg:mx-0"
+                >
+                  {[
+                    [caps ? String(caps.conversions.length) : '110', 'Tested routes'],
+                    [`${caps?.limits.max_files ?? 30}`, 'Files per batch'],
+                    ['0', 'Sign-ups needed'],
+                  ].map(([value, label], i) => (
+                    <div key={label} className={i === 0 ? 'pr-4' : 'px-4'}>
+                      <dt className="sr-only">{label}</dt>
+                      <dd className="text-2xl font-semibold tracking-tight tabular-nums">{value}</dd>
+                      <dd className="mt-0.5 text-xs text-fg-3">{label}</dd>
+                    </div>
+                  ))}
+                </motion.dl>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Converter / orb */}
+        <motion.div
+          layout="position"
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.9, delay: 0.1, ease }}
+          className={active ? 'mx-auto w-full max-w-4xl' : 'w-full lg:order-1'}
+        >
+          {caps ? (
+            <Converter caps={caps} onHistoryChange={onHistoryChange} onActiveChange={setActive} />
+          ) : error ? (
+            <div className="mx-auto max-w-md rounded-[28px] border border-danger/30 bg-card/80 p-10 text-center">
+              <AlertTriangle className="mx-auto mb-3 size-8 text-danger" />
+              <p className="font-semibold">{error}</p>
+              <p className="mt-1 text-sm text-fg-2">Make sure the SNIPEX API is running, then try again.</p>
+              <button onClick={onRetry} className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-card-2 px-4 text-sm font-medium hover:border-line-2">
+                <RefreshCw className="size-4" /> Retry
+              </button>
+            </div>
+          ) : (
+            <div className="mx-auto aspect-square w-full max-w-[min(540px,62svh)] p-[7%]" aria-busy="true" aria-label="Loading converter">
+              <div className="skeleton size-full rounded-full" />
+            </div>
+          )}
+        </motion.div>
       </div>
+
+      {!active && (
+        <a href="#formats" className="relative mx-auto mb-7 hidden flex-col items-center gap-1 text-[11px] tracking-[0.2em] text-fg-3 uppercase transition-colors hover:text-fg-2 lg:flex" aria-label="Scroll to supported formats">
+          Explore
+          <ChevronDown className="scroll-cue size-4" />
+        </a>
+      )}
+      <div className="hero-fade pointer-events-none absolute inset-x-0 bottom-0 h-24" aria-hidden />
     </section>
   )
 }
