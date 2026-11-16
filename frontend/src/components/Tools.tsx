@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
-  ArrowDown, ArrowUp, Combine, FileImage, FileOutput, FileSpreadsheet, FileText, Image as ImageIcon, ImageDown,
-  Loader2, Minimize2, Scaling, Scissors, Sheet, Sparkles, X, type LucideIcon,
+  ArrowDown, ArrowRight, ArrowUp, Combine, FileImage, FileOutput, FileSpreadsheet, FileText, Image as ImageIcon, ImageDown,
+  Loader2, Minimize2, Scaling, Scissors, Sheet, X, type LucideIcon,
 } from 'lucide-react'
 import { deleteBatch, uploadBatch, type Batch, type Capabilities } from '../lib/api'
 import { bytes, categoryOf, extOf, formatForName, labelOf } from '../lib/format'
@@ -10,11 +10,11 @@ import { history } from '../lib/storage'
 import { isTerminal, useBatchPolling } from '../lib/useBatch'
 import { DownloadCenter } from './DownloadCenter'
 import { DropZone } from './DropZone'
-import { FileIcon, SectionHeading, Select, useToast } from './ui'
+import { FileIcon, Select, useToast } from './ui'
 
 type OptionKind = 'split' | 'compress-pdf' | 'resize' | 'compress-img' | 'image-target' | 'pdf-image-target' | null
 
-interface ToolDef {
+export interface ToolDef {
   id: string
   name: string
   desc: string
@@ -27,7 +27,7 @@ interface ToolDef {
 
 const IMAGES = ['jpg', 'png', 'webp', 'bmp', 'tiff', 'gif']
 
-const GROUPS: { name: string; icon: LucideIcon; tools: ToolDef[] }[] = [
+export const GROUPS: { name: string; icon: LucideIcon; tools: ToolDef[] }[] = [
   {
     name: 'PDF Tools', icon: FileText,
     tools: [
@@ -63,76 +63,15 @@ const GROUPS: { name: string; icon: LucideIcon; tools: ToolDef[] }[] = [
   },
 ]
 
-function toolEnabled(t: ToolDef, caps: Capabilities): boolean {
+export function toolEnabled(t: ToolDef, caps: Capabilities): boolean {
   if (t.run.kind === 'tool') return !!caps.tools[t.run.tool]
   const target = t.run.target
   return t.accepts.some((src) => caps.conversions.some((c) => c.src === src && c.dst === target))
 }
 
-export function Tools({ caps, onHistoryChange }: { caps: Capabilities | null; onHistoryChange: () => void }) {
-  const [active, setActive] = useState<string | null>(null)
-  const activeTool = GROUPS.flatMap((g) => g.tools).find((t) => t.id === active) ?? null
-
-  return (
-    <section id="tools" className="wrap py-28">
-      <SectionHeading eyebrow="Advanced tools" title="Precision tools for everyday files" sub="Merge, split, compress and resize, each one running the same engines as the converter." />
-      <div className="grid gap-4 md:grid-cols-2">
-        {GROUPS.map((g) => (
-          <div key={g.name} className="card-border rounded-2xl border border-line bg-card/60 p-4">
-            <p className="mb-3 flex items-center gap-2 px-1 text-sm font-semibold">
-              <g.icon className="size-4 text-lavender" /> {g.name}
-            </p>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {g.tools.map((t) => {
-                const enabled = caps ? toolEnabled(t, caps) : false
-                const selected = active === t.id
-                return (
-                  <button
-                    key={t.id}
-                    disabled={!enabled}
-                    onClick={() => setActive(selected ? null : t.id)}
-                    aria-expanded={selected}
-                    className={`group flex items-start gap-3 rounded-xl p-3 text-left transition-colors ${
-                      selected ? 'bg-violet/15 ring-1 ring-violet/40' : 'hover:bg-card-2'
-                    } disabled:cursor-not-allowed disabled:opacity-40`}
-                    title={enabled ? undefined : 'Not available on this server'}
-                  >
-                    <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg ring-1 transition-colors ${selected ? 'bg-violet/25 text-lavender ring-violet/50' : 'bg-card-2 text-fg-2 ring-line group-hover:text-lavender'}`}>
-                      <t.icon className="size-4" />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-medium">{t.name}</span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-fg-3">{t.desc}</span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-      <AnimatePresence mode="wait">
-        {activeTool && caps && (
-          <motion.div
-            key={activeTool.id}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="pt-5">
-              <ToolRunner tool={activeTool} caps={caps} onClose={() => setActive(null)} onHistoryChange={onHistoryChange} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </section>
-  )
-}
-
 interface ToolFile { key: string; file: File; format: string | null }
 
-function ToolRunner({ tool, caps, onClose, onHistoryChange }: { tool: ToolDef; caps: Capabilities; onClose: () => void; onHistoryChange: () => void }) {
+export function ToolRunner({ tool, caps, onClose, onHistoryChange }: { tool: ToolDef; caps: Capabilities; onClose: () => void; onHistoryChange: () => void }) {
   const toast = useToast()
   const [files, setFiles] = useState<ToolFile[]>([])
   const [busy, setBusy] = useState(false)
@@ -250,18 +189,19 @@ function ToolRunner({ tool, caps, onClose, onHistoryChange }: { tool: ToolDef; c
     (tool.options === 'resize' && resizeBy === 'size' && !width && !height)
 
   return (
-    <div className="card-border rounded-[24px] border border-line bg-card/80 p-4 backdrop-blur-xl sm:p-6">
-      <div className="mb-5 flex items-start justify-between gap-4">
+    <div className="relative rounded-[28px] border border-white/[0.08] bg-[#0a0910]/80 p-5 shadow-[0_0_0_1px_rgba(168,85,247,0.06),0_40px_120px_-40px_rgba(124,58,237,0.55)] backdrop-blur-2xl sm:p-7 light:border-black/[0.08] light:bg-white/85">
+      <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-purple/70 to-transparent" aria-hidden />
+      <div className="mb-6 flex items-start justify-between gap-4 border-b border-line pb-5">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-violet/20 text-lavender ring-1 ring-violet/40">
-            <tool.icon className="size-5" />
+          <span className="grid size-11 place-items-center rounded-xl bg-gradient-to-b from-white/[0.07] to-white/[0.015] text-lavender ring-1 ring-white/10 shadow-[0_0_24px_-8px_rgba(168,85,247,0.8)] light:from-black/[0.03] light:ring-black/10">
+            <tool.icon className="size-5" strokeWidth={1.6} />
           </span>
           <div>
-            <h3 className="font-semibold">{tool.name}</h3>
-            <p className="text-sm text-fg-2">{tool.desc}</p>
+            <h3 className="text-xl font-semibold tracking-tight">{tool.name}</h3>
+            <p className="mt-0.5 text-sm text-fg-3">{tool.desc}</p>
           </div>
         </div>
-        <button onClick={onClose} className="grid size-9 shrink-0 place-items-center rounded-lg text-fg-3 hover:bg-card-2 hover:text-fg" aria-label="Close tool">
+        <button onClick={onClose} className="grid size-9 shrink-0 place-items-center rounded-full border border-line text-fg-3 transition-colors hover:border-line-2 hover:text-fg" aria-label="Close tool">
           <X className="size-4" />
         </button>
       </div>
@@ -280,25 +220,29 @@ function ToolRunner({ tool, caps, onClose, onHistoryChange }: { tool: ToolDef; c
           }}
         />
       ) : created && batch ? (
-        <div className="rounded-2xl border border-violet/30 bg-violet/[0.06] p-5" aria-live="polite">
+        <div className="rounded-2xl border border-line p-5" aria-live="polite">
           <div className="mb-3 flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 font-medium"><Loader2 className="size-4 animate-spin text-lavender" /> {batch.current ? `Processing ${batch.current}` : 'Processing…'}</span>
-            <span className="font-mono text-lavender">{batch.finished} / {batch.total}</span>
+            <span className="text-fg-2 tabular-nums">{batch.finished} / {batch.total}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-line">
-            <motion.div className="progress-stripes h-full bg-gradient-to-r from-violet to-purple" animate={{ width: `${Math.max(4, batch.progress)}%` }} />
+          <div className="h-[3px] rounded-full bg-line">
+            <motion.div className="h-full rounded-full bg-gradient-to-r from-violet via-purple to-fuchsia-400 shadow-[0_0_14px_2px_rgba(168,85,247,0.7)]" animate={{ width: `${Math.max(4, batch.progress)}%` }} />
           </div>
         </div>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
           <div>
             {files.length === 0 ? (
-              <DropZone onFiles={add} accept={accept} title={`Drop files for ${tool.name}`} subtitle={`Accepts ${tool.accepts.map((a) => labelOf(a, caps)).join(', ')}`} />
+              <div className="mx-auto max-w-[400px]">
+                <DropZone orb onFiles={add} accept={accept} title={`Drop files for ${tool.name}`}>
+                  {tool.accepts.map((a) => labelOf(a, caps)).join(' · ')}
+                </DropZone>
+              </div>
             ) : (
               <>
-                <ul className="max-h-80 divide-y divide-line overflow-y-auto rounded-2xl border border-line bg-bg-2/50">
+                <ul className="max-h-80 divide-y divide-line overflow-y-auto rounded-2xl border border-line bg-black/20 light:bg-white/60">
                   {files.map((f, i) => (
-                    <li key={f.key} className="flex items-center gap-3 px-3 py-2">
+                    <li key={f.key} className="flex items-center gap-3 px-4 py-2.5">
                       {tool.reorder && <span className="w-5 text-center font-mono text-xs text-fg-3">{i + 1}</span>}
                       <FileIcon category={categoryOf(f.format, caps)} ext={extOf(f.file.name)} size="sm" />
                       <div className="min-w-0 flex-1">
@@ -319,7 +263,8 @@ function ToolRunner({ tool, caps, onClose, onHistoryChange }: { tool: ToolDef; c
               </>
             )}
           </div>
-          <div className="flex flex-col gap-4 rounded-2xl border border-line bg-bg-2/50 p-4">
+          <div className="flex flex-col gap-4 rounded-2xl border border-line p-5">
+            <p className="text-[11px] font-medium tracking-[0.18em] text-fg-3 uppercase">Settings</p>
             <ToolOptions
               kind={tool.options}
               {...{ splitMode, setSplitMode, ranges, setRanges, level, setLevel, resizeBy, setResizeBy, percent, setPercent, width, setWidth, height, setHeight, quality, setQuality, target, setTarget, targetOptions, caps }}
@@ -327,9 +272,9 @@ function ToolRunner({ tool, caps, onClose, onHistoryChange }: { tool: ToolDef; c
             <button
               onClick={run}
               disabled={busy || files.length < minFiles || optionsInvalid}
-              className="btn-primary mt-auto inline-flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold"
+              className="mt-auto inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-white text-sm font-semibold text-black shadow-[0_12px_40px_-12px_rgba(168,85,247,0.8)] transition-all hover:-translate-y-px disabled:translate-y-0 disabled:opacity-40 disabled:shadow-none light:bg-[#0b0b12] light:text-white"
             >
-              {busy ? <><Loader2 className="size-4 animate-spin" /> Uploading {Math.round(upload * 100)}%</> : <><Sparkles className="size-4" /> Run {tool.name}</>}
+              {busy ? <><Loader2 className="size-4 animate-spin" /> Uploading {Math.round(upload * 100)}%</> : <>Run {tool.name} <ArrowRight className="size-4" /></>}
             </button>
             {files.length < minFiles && <p className="-mt-2 text-center text-xs text-fg-3">Add at least {minFiles} {minFiles === 1 ? 'file' : 'files'}</p>}
           </div>
@@ -378,7 +323,7 @@ function ToolOptions(p: any) {
       return (
         <label>
           <span className={label}>Quality · {p.quality}</span>
-          <input type="range" min={10} max={95} value={p.quality} onChange={(e) => p.setQuality(Number(e.target.value))} className="w-full accent-violet-500" />
+          <input type="range" min={10} max={95} value={p.quality} onChange={(e) => p.setQuality(Number(e.target.value))} className="w-full accent-purple-400" />
           <span className="mt-1 block text-xs text-fg-3">PNG files are reduced to an optimised 256-colour palette.</span>
         </label>
       )
@@ -395,7 +340,7 @@ function ToolOptions(p: any) {
           {p.resizeBy === 'percent' ? (
             <label>
               <span className={label}>Scale · {p.percent}%</span>
-              <input type="range" min={5} max={200} step={5} value={p.percent} onChange={(e) => p.setPercent(Number(e.target.value))} className="w-full accent-violet-500" />
+              <input type="range" min={5} max={200} step={5} value={p.percent} onChange={(e) => p.setPercent(Number(e.target.value))} className="w-full accent-purple-400" />
             </label>
           ) : (
             <div className="grid grid-cols-2 gap-2">
