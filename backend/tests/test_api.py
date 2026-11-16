@@ -137,3 +137,22 @@ def test_tools_merge_and_compress(client, samples):
     assert body["counts"]["completed"] == 2
     r = client.post("/api/tools/resize-images", files=_files(samples, "jpg"), data={"options": json.dumps({"percent": 9999})})
     assert r.status_code == 400
+
+
+def test_office_group_isolates_a_broken_file(client, samples):
+    """Office files are converted in groups; a corrupt one must fail alone, not take the group down."""
+    if not settings.soffice:
+        pytest.skip("LibreOffice not installed")
+    import zipfile as zf
+
+    broken = io.BytesIO()
+    with zf.ZipFile(broken, "w") as z:  # passes the structural check, but is not a real document
+        z.writestr("[Content_Types].xml", "<Types/>")
+        z.writestr("word/document.xml", "garbage")
+    files = [("files", (f"good-{i}.docx", samples["docx"].read_bytes())) for i in range(4)]
+    files.insert(2, ("files", ("broken.docx", broken.getvalue())))
+    r = client.post("/api/conversions", files=files, data={"target": "pdf"})
+    body = _wait(client, r.json())
+    by_name = {t["inputs"][0]["name"]: t for t in body["tasks"]}
+    assert all(by_name[f"good-{i}.docx"]["status"] == "completed" for i in range(4))
+    assert by_name["broken.docx"]["status"] in ("failed", "completed")  # LibreOffice may salvage an empty doc
