@@ -34,9 +34,9 @@ export function useBatchPolling(initial: Batch | null, token: string | null, onE
           return
         }
       }
-      timer = setTimeout(tick, 700)
+      timer = setTimeout(tick, 300)
     }
-    timer = setTimeout(tick, 350)
+    timer = setTimeout(tick, 150)
     return () => {
       stopped = true
       clearTimeout(timer)
