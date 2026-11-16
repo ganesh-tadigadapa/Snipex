@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, ArrowRight, ArrowUpDown, Bookmark, Check, CircleDashed, Loader2, Search,
-  Sparkles, Trash2, X, XCircle,
+  AlertTriangle, ArrowRight, Bookmark, Check, ChevronDown, CircleDashed, Loader2, Search,
+  Trash2, X, XCircle,
 } from 'lucide-react'
 import { cancelBatch, deleteBatch, uploadBatch, type Batch, type Capabilities, type TaskStatus } from '../lib/api'
 import { bytes, categoryOf, conversionInfo, duration, extOf, formatForName, labelOf, targetsFor } from '../lib/format'
@@ -277,104 +277,167 @@ export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
   if (!files.length) {
     return (
       <DropZone orb onFiles={addFiles}>
-        Up to {caps.limits.max_files} files <span className="mx-1.5 text-fg-3">•</span> {caps.inputs.length} formats{' '}
-        <span className="mx-1.5 text-fg-3">•</span> Batch convert
+        <span className="whitespace-nowrap">
+          Up to {caps.limits.max_files} files
+          <span className="hidden sm:inline">
+            <span className="mx-1.5 text-fg-3">•</span>
+            {caps.inputs.length} formats
+          </span>
+          <span className="mx-1.5 text-fg-3">•</span>
+          Batch convert
+        </span>
       </DropZone>
     )
   }
 
+  const unsupported = files.length - supported.length
+  const skipped = supported.length - ready.length
+  const PRIMARY_CHIPS = 7
+  const chipOptions = singleOptions.slice(0, PRIMARY_CHIPS)
+  const moreOptions = singleOptions.slice(PRIMARY_CHIPS)
+  const ctaLabel =
+    mode === 'single' && singleTarget
+      ? `Convert ${ready.length} ${ready.length === 1 ? 'file' : 'files'} to ${labelOf(singleTarget, caps)}`
+      : `Convert ${ready.length} ${ready.length === 1 ? 'file' : 'files'}`
+
   return (
     <Shell innerRef={rootRef}>
-      {/* Stats */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-        <Stat label="Files" value={`${files.length}/${caps.limits.max_files}`} />
-        <Stat label="Total size" value={bytes(totalSize)} />
-        <Stat label="Supported" value={supported.length} />
-        {files.length - supported.length > 0 && <Stat label="Unsupported" value={files.length - supported.length} tone="danger" />}
-        <Stat label="Ready" value={ready.length} tone="success" />
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-4">
+        <div>
+          <p className="text-[11px] font-medium tracking-[0.18em] text-fg-3 uppercase">Your files</p>
+          <p className="mt-1 text-xl font-semibold tracking-tight">
+            {files.length} {files.length === 1 ? 'file' : 'files'}
+            <span className="ml-2 text-sm font-normal text-fg-3">· {bytes(totalSize)}</span>
+          </p>
+          {unsupported > 0 && <p className="mt-0.5 text-xs text-danger">{unsupported} not supported, will be skipped</p>}
+        </div>
+        {phase === 'select' && (
+          <div className="flex items-center gap-1.5">
+            <DropZone onFiles={addFiles} compact disabled={files.length >= caps.limits.max_files} />
+            <button
+              onClick={() => setFiles([])}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] text-fg-3 transition-colors hover:text-danger"
+            >
+              <Trash2 className="size-3.5" /> Clear
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Output selector */}
+      {/* Output format */}
       <AnimatePresence initial={false}>
         {phase === 'select' && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="mb-4 rounded-2xl border border-line bg-bg-2/60 p-4">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div className="flex-1">
-                  <p className="mb-2 text-xs font-medium tracking-wide text-fg-3 uppercase">Output</p>
-                  <div role="radiogroup" aria-label="Conversion mode" className="inline-flex rounded-xl border border-line bg-card p-1">
-                    {(
-                      [
-                        ['single', 'Same format for all'],
-                        ['per_file', 'Choose per file'],
-                      ] as const
-                    ).map(([m, label]) => (
-                      <button
-                        key={m}
-                        role="radio"
-                        aria-checked={mode === m}
-                        onClick={() => setMode(m)}
-                        className={`relative rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${mode === m ? 'text-fg' : 'text-fg-2 hover:text-fg'}`}
-                      >
-                        {mode === m && <motion.span layoutId="mode-pill" className="absolute inset-0 rounded-lg bg-violet/20 ring-1 ring-violet/40" />}
-                        <span className="relative">{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                  {mode === 'single' && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm whitespace-nowrap text-fg-2">Convert to</span>
-                      <Select
-                        label="Output format for all files"
-                        value={singleTarget}
-                        onChange={setSingleTarget}
-                        options={singleOptions}
-                        className="w-full min-w-48 sm:w-56"
-                        disabled={!singleOptions.length}
-                        placeholder={singleOptions.length ? undefined : 'No compatible format'}
-                      />
-                    </div>
-                  )}
-                  <Select
-                    label="Apply a conversion preset"
-                    value=""
-                    onChange={applyPreset}
-                    placeholder="Presets…"
-                    options={[...BUILTIN_PRESETS, ...customPresets].map((p) => ({ value: p.id, label: p.name }))}
-                    className="w-full sm:w-44"
-                  />
-                  {!savingPreset ? (
-                    <button
-                      onClick={() => setSavingPreset(true)}
-                      disabled={!ready.length}
-                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm text-fg-2 transition-colors hover:text-fg disabled:opacity-40"
-                      title="Save current output choices as a preset"
+            <div className="mb-5 border-y border-line py-5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-medium tracking-[0.18em] text-fg-3 uppercase">{mode === 'single' ? 'Convert to' : 'Choose a format for each file'}</p>
+                <div className="flex items-center gap-1 text-xs">
+                  <button
+                    onClick={() => setMode(mode === 'single' ? 'per_file' : 'single')}
+                    className="rounded-md px-2 py-1 font-medium text-lavender transition-colors hover:bg-violet/10"
+                  >
+                    {mode === 'single' ? 'Customize per file' : 'Use one format for all'}
+                  </button>
+                  <span className="text-fg-3">·</span>
+                  <label className="relative">
+                    <span className="sr-only">Apply a preset</span>
+                    <select
+                      value=""
+                      onChange={(e) => e.target.value && applyPreset(e.target.value)}
+                      className="w-[78px] cursor-pointer rounded-md bg-transparent py-1 pr-5 pl-2 font-medium text-fg-2 transition-colors hover:text-fg focus:outline-none"
                     >
-                      <Bookmark className="size-4" /> Save
-                    </button>
-                  ) : (
-                    <form onSubmit={(e) => (e.preventDefault(), savePreset())} className="flex items-center gap-1">
-                      <input
-                        autoFocus
-                        value={presetName}
-                        onChange={(e) => setPresetName(e.target.value)}
-                        placeholder="Preset name"
-                        maxLength={40}
-                        aria-label="Preset name"
-                        className="h-9 w-36 rounded-lg border border-line bg-card px-2.5 text-sm placeholder:text-fg-3 focus:border-violet focus:outline-none"
-                      />
-                      <button type="submit" className="grid size-9 place-items-center rounded-lg text-success hover:bg-success/10" aria-label="Save preset"><Check className="size-4" /></button>
-                      <button type="button" onClick={() => setSavingPreset(false)} className="grid size-9 place-items-center rounded-lg text-fg-3 hover:bg-card" aria-label="Cancel"><X className="size-4" /></button>
-                    </form>
+                      <option value="">Presets</option>
+                      {[...BUILTIN_PRESETS, ...customPresets].map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute top-1/2 right-1 size-3 -translate-y-1/2 text-fg-3" />
+                  </label>
+                  {mode === 'per_file' && !savingPreset && (
+                    <>
+                      <span className="text-fg-3">·</span>
+                      <button onClick={() => setSavingPreset(true)} disabled={!ready.length} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-fg-2 hover:bg-card hover:text-fg disabled:opacity-40">
+                        <Bookmark className="size-3" /> Save
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
-              {mode === 'single' && singleTarget && supported.length > ready.length && (
-                <p className="mt-3 flex items-center gap-1.5 text-xs text-warning">
-                  <AlertTriangle className="size-3.5" />
-                  {supported.length - ready.length} {supported.length - ready.length === 1 ? 'file' : 'files'} can’t become {labelOf(singleTarget, caps)} and will be skipped — switch to “Choose per file” to pick another format.
+
+              {savingPreset && (
+                <form onSubmit={(e) => (e.preventDefault(), savePreset())} className="mb-3 flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="Name this preset"
+                    maxLength={40}
+                    aria-label="Preset name"
+                    className="h-9 flex-1 rounded-lg border border-line bg-card px-3 text-sm placeholder:text-fg-3 focus:border-violet focus:outline-none sm:max-w-xs"
+                  />
+                  <button type="submit" className="grid size-9 place-items-center rounded-lg text-success hover:bg-success/10" aria-label="Save preset"><Check className="size-4" /></button>
+                  <button type="button" onClick={() => setSavingPreset(false)} className="grid size-9 place-items-center rounded-lg text-fg-3 hover:bg-card" aria-label="Cancel"><X className="size-4" /></button>
+                </form>
+              )}
+
+              {mode === 'single' && (
+                <div role="radiogroup" aria-label="Output format" className="flex flex-wrap gap-2">
+                  {chipOptions.map((o) => {
+                    const on = o.value === singleTarget
+                    const partial = o.hint !== 'all files'
+                    return (
+                      <button
+                        key={o.value}
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => setSingleTarget(o.value)}
+                        title={partial ? `Works for ${o.hint}` : 'Works for all files'}
+                        className={`relative inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium tracking-wide transition-all duration-200 ${
+                          on
+                            ? 'bg-violet/15 text-fg ring-1 ring-purple/70 shadow-[0_0_22px_-6px_rgba(168,85,247,0.9),inset_0_0_12px_rgba(168,85,247,0.15)]'
+                            : 'text-fg-2 ring-1 ring-line hover:text-fg hover:ring-line-2'
+                        }`}
+                      >
+                        {o.label}
+                        {partial && <span className="text-[10.5px] text-fg-3 tabular-nums">{o.hint.split(' of ')[0]}/{supported.length}</span>}
+                      </button>
+                    )
+                  })}
+                  {moreOptions.length > 0 && (() => {
+                    const picked = moreOptions.find((o) => o.value === singleTarget)
+                    return (
+                      <label
+                        className={`relative inline-flex h-9 items-center rounded-full text-[13px] font-medium tracking-wide transition-all ${
+                          picked
+                            ? 'bg-violet/15 text-fg ring-1 ring-purple/70 shadow-[0_0_22px_-6px_rgba(168,85,247,0.9)]'
+                            : 'text-fg-2 ring-1 ring-line hover:text-fg hover:ring-line-2'
+                        }`}
+                      >
+                        <span className="sr-only">More output formats</span>
+                        <select
+                          value={picked ? singleTarget : ''}
+                          onChange={(e) => e.target.value && setSingleTarget(e.target.value)}
+                          className="h-full cursor-pointer rounded-full bg-transparent pr-8 pl-4 focus:outline-none"
+                        >
+                          <option value="">More</option>
+                          {moreOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}  ·  {o.hint}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 size-3.5 text-fg-3" />
+                      </label>
+                    )
+                  })()}
+                  {!singleOptions.length && <p className="text-sm text-fg-3">None of these files can be converted.</p>}
+                </div>
+              )}
+
+              {mode === 'single' && skipped > 0 && (
+                <p className="mt-3 flex items-start gap-1.5 text-xs text-warning">
+                  <AlertTriangle className="mt-px size-3.5 shrink-0" />
+                  {skipped} {skipped === 1 ? 'file' : 'files'} can’t become {labelOf(singleTarget, caps)} and will be skipped.{' '}
+                  <button onClick={() => setMode('per_file')} className="underline underline-offset-2 hover:text-fg">Pick formats per file</button>
                 </p>
               )}
             </div>
@@ -382,12 +445,9 @@ export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Progress */}
-      {busy && <OverallProgress phase={phase} batch={batch} uploadFraction={uploadFraction} count={submitted.length} onCancel={cancel} />}
-
-      {/* Toolbar */}
-      {files.length > 3 && (
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+      {/* Search, only useful for big batches */}
+      {files.length > 6 && (
+        <div className="mb-3 flex gap-2">
           <label className="relative flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-3" />
             <input
@@ -398,32 +458,31 @@ export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
               className="h-9 w-full rounded-lg border border-line bg-card-2 pr-3 pl-9 text-sm placeholder:text-fg-3 focus:border-violet focus:outline-none"
             />
           </label>
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="size-4 text-fg-3" aria-hidden />
-            <Select
-              label="Sort files"
-              value={sort}
-              onChange={(v) => setSort(v as SortKey)}
-              options={[
-                { value: 'added', label: 'Order added' },
-                { value: 'name', label: 'Name' },
-                { value: 'type', label: 'Type' },
-                { value: 'size', label: 'Size' },
-              ]}
-              className="w-40"
-            />
-          </div>
+          <Select
+            label="Sort files"
+            value={sort}
+            onChange={(v) => setSort(v as SortKey)}
+            options={[
+              { value: 'added', label: 'Order added' },
+              { value: 'name', label: 'Name' },
+              { value: 'type', label: 'Type' },
+              { value: 'size', label: 'Size' },
+            ]}
+            className="w-36"
+          />
         </div>
       )}
 
-      {/* File list */}
-      <ul className="max-h-[440px] divide-y divide-line overflow-y-auto overscroll-contain rounded-2xl border border-line bg-bg-2/50" aria-label="Selected files">
+      {/* Files */}
+      <ul className="max-h-[420px] divide-y divide-line overflow-y-auto overscroll-contain rounded-2xl border border-line bg-black/20 light:bg-white/60" aria-label="Selected files">
         <AnimatePresence initial={false}>
           {visible.map((f) => {
             const st = statusByKey.get(f.key)
             const target = effectiveTarget(f)
             const options = targetsFor(f.format, caps)
             const info = conversionInfo(f.format, target, caps)
+            const err = st?.error || f.issue
+            const dim = !!f.issue || (!target && phase === 'select')
             return (
               <motion.li
                 key={f.key}
@@ -431,112 +490,98 @@ export function Converter({ caps, onHistoryChange, onActiveChange }: Props) {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: 16, transition: { duration: 0.15 } }}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 sm:flex-nowrap sm:px-4"
+                className={`group flex items-center gap-3.5 px-4 py-3 transition-colors hover:bg-white/[0.025] light:hover:bg-black/[0.02] ${dim ? 'opacity-50' : ''}`}
               >
                 <FileIcon category={categoryOf(f.format, caps)} ext={f.ext} />
-                <div className="min-w-0 flex-1 basis-[55%] sm:basis-auto">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium" title={f.name}>{f.name}</p>
                   <p className="mt-0.5 truncate text-xs text-fg-3">
-                    {f.format ? labelOf(f.format, caps) : f.ext ? f.ext.toUpperCase() : 'Unknown'} · {bytes(f.size)}
-                    {st?.error ? <span className="text-danger"> · {st.error}</span> : f.issue ? <span className="text-danger"> · {f.issue}</span> : info?.quality === 'basic' && phase === 'select' ? <span className="text-warning" title={info.notes}> · Basic fidelity</span> : null}
+                    {bytes(f.size)}
+                    {err ? (
+                      <span className="text-danger"> · {err}</span>
+                    ) : !target && phase === 'select' ? (
+                      <span> · skipped</span>
+                    ) : info?.quality === 'basic' && phase === 'select' ? (
+                      <span className="text-warning" title={info.notes}> · simplified layout</span>
+                    ) : null}
                   </p>
                 </div>
-                <div className="ml-auto flex items-center gap-2 sm:ml-0">
-                  {!f.issue && (
-                    <>
-                      <ArrowRight className="hidden size-4 text-fg-3 sm:block" aria-hidden />
-                      {mode === 'per_file' && phase === 'select' ? (
-                        <Select
-                          label={`Output format for ${f.name}`}
-                          value={f.target}
-                          onChange={(v) => setTarget(f.key, v)}
-                          options={options.map((t) => ({ value: t, label: labelOf(t, caps) }))}
-                          className="w-28"
-                        />
-                      ) : (
-                        <span className={`inline-flex h-7 min-w-14 items-center justify-center rounded-md px-2 font-mono text-xs ${target ? 'bg-violet/15 text-lavender ring-1 ring-violet/30' : 'text-fg-3 ring-1 ring-line'}`}>
-                          {target ? labelOf(target, caps) : 'skip'}
-                        </span>
-                      )}
-                    </>
-                  )}
-                  <StatusPill status={st?.status ?? (f.issue ? 'unsupported' : target ? 'ready' : 'skip')} />
-                  {phase === 'select' && (
-                    <button onClick={() => remove(f.key)} className="grid size-8 place-items-center rounded-lg text-fg-3 transition-colors hover:bg-danger/10 hover:text-danger" aria-label={`Remove ${f.name}`}>
+                {!f.issue && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <ArrowRight className="hidden size-3.5 text-fg-3 sm:block" aria-hidden />
+                    {mode === 'per_file' && phase === 'select' ? (
+                      <Select
+                        label={`Output format for ${f.name}`}
+                        value={f.target}
+                        onChange={(v) => setTarget(f.key, v)}
+                        options={options.map((t) => ({ value: t, label: labelOf(t, caps) }))}
+                        className="w-[104px]"
+                      />
+                    ) : target ? (
+                      <span className="min-w-12 font-mono text-xs font-medium tracking-wider text-lavender">{labelOf(target, caps)}</span>
+                    ) : null}
+                  </div>
+                )}
+                <div className="grid w-8 shrink-0 place-items-center">
+                  {st ? (
+                    <StatusIcon status={st.status} />
+                  ) : phase === 'select' ? (
+                    <button
+                      onClick={() => remove(f.key)}
+                      className="grid size-8 place-items-center rounded-lg text-fg-3 transition-colors hover:bg-danger/10 hover:text-danger sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                      aria-label={`Remove ${f.name}`}
+                    >
                       <X className="size-4" />
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </motion.li>
             )
           })}
         </AnimatePresence>
-        {!visible.length && <li className="px-4 py-8 text-center text-sm text-fg-3">No files match “{query}”.</li>}
+        {!visible.length && <li className="py-8 text-center text-sm text-fg-3">No files match “{query}”.</li>}
       </ul>
 
-      {/* Actions */}
-      {phase === 'select' && (
-        <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <DropZone onFiles={addFiles} compact disabled={files.length >= caps.limits.max_files} />
-            <button onClick={() => setFiles([])} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm text-fg-2 transition-colors hover:bg-danger/10 hover:text-danger">
-              <Trash2 className="size-4" /> Clear all
-            </button>
-          </div>
+      {/* Action / progress */}
+      <div className="mt-4">
+        {busy ? (
+          <OverallProgress phase={phase} batch={batch} uploadFraction={uploadFraction} count={submitted.length} onCancel={cancel} />
+        ) : (
           <button
             onClick={convert}
             disabled={!ready.length}
-            className="btn-primary inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 text-[15px] font-semibold"
+            className="group/cta inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-white text-[15px] font-semibold text-black shadow-[0_12px_40px_-12px_rgba(168,85,247,0.8)] transition-all hover:-translate-y-px hover:shadow-[0_16px_50px_-12px_rgba(168,85,247,0.95)] disabled:translate-y-0 disabled:opacity-40 disabled:shadow-none light:bg-[#0b0b12] light:text-white"
           >
-            <Sparkles className="size-4" />
-            {ready.length === files.length ? 'Convert All Files' : `Convert ${ready.length} ${ready.length === 1 ? 'File' : 'Files'}`}
-            <ArrowRight className="size-4" />
+            {ctaLabel}
+            <ArrowRight className="size-4 transition-transform group-hover/cta:translate-x-0.5" />
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </Shell>
   )
 }
 
 function Shell({ children, innerRef }: { children: React.ReactNode; innerRef?: React.Ref<HTMLDivElement> }) {
   return (
-    <div ref={innerRef} className="card-border relative rounded-[28px] border border-line bg-card/80 p-3 shadow-[0_30px_80px_-30px_rgba(124,58,237,0.35)] backdrop-blur-xl sm:p-5">
+    <div
+      ref={innerRef}
+      className="relative rounded-[28px] border border-white/[0.08] bg-[#0a0910]/80 p-5 shadow-[0_0_0_1px_rgba(168,85,247,0.06),0_40px_120px_-40px_rgba(124,58,237,0.55)] backdrop-blur-2xl sm:p-7 light:border-black/[0.08] light:bg-white/85"
+    >
+      <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-purple/70 to-transparent" aria-hidden />
       {children}
     </div>
   )
 }
 
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: 'success' | 'danger' }) {
-  const color = tone === 'success' ? 'text-success' : tone === 'danger' ? 'text-danger' : 'text-fg'
-  return (
-    <span className="flex items-baseline gap-1.5">
-      <span className={`font-semibold tabular-nums ${color}`}>{value}</span>
-      <span className="text-fg-3">{label}</span>
-    </span>
-  )
-}
-
-const PILL: Record<string, { label: string; cls: string; icon?: React.ReactNode }> = {
-  ready: { label: 'Ready', cls: 'text-fg-2 ring-line' },
-  skip: { label: 'Skipped', cls: 'text-fg-3 ring-line' },
-  unsupported: { label: 'Unsupported', cls: 'text-danger ring-danger/30 bg-danger/5' },
-  uploading: { label: 'Uploading', cls: 'text-lavender ring-violet/30 bg-violet/10', icon: <Loader2 className="size-3 animate-spin" /> },
-  waiting: { label: 'Waiting', cls: 'text-fg-2 ring-line', icon: <CircleDashed className="size-3" /> },
-  converting: { label: 'Converting', cls: 'text-lavender ring-violet/40 bg-violet/15', icon: <Loader2 className="size-3 animate-spin" /> },
-  completed: { label: 'Completed', cls: 'text-success ring-success/30 bg-success/10', icon: <Check className="size-3" strokeWidth={3} /> },
-  failed: { label: 'Failed', cls: 'text-danger ring-danger/30 bg-danger/10', icon: <XCircle className="size-3" /> },
-  skipped: { label: 'Skipped', cls: 'text-fg-3 ring-line' },
-  cancelled: { label: 'Cancelled', cls: 'text-fg-3 ring-line' },
-}
-
-function StatusPill({ status }: { status: string }) {
-  const p = PILL[status] ?? PILL.ready
-  return (
-    <span className={`inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full px-2 text-xs font-medium ring-1 sm:w-[104px] sm:px-0 ${p.cls}`} title={p.label}>
-      {p.icon}
-      <span className={p.icon ? 'sr-only sm:not-sr-only' : ''}>{p.label}</span>
-    </span>
-  )
+function StatusIcon({ status }: { status: string }) {
+  const label = { uploading: 'Uploading', waiting: 'Waiting', converting: 'Converting', completed: 'Done', failed: 'Failed', skipped: 'Skipped', cancelled: 'Cancelled' }[status] ?? status
+  let icon: React.ReactNode
+  if (status === 'completed') icon = <Check className="size-4 text-success" strokeWidth={2.5} />
+  else if (status === 'failed') icon = <XCircle className="size-4 text-danger" strokeWidth={1.75} />
+  else if (status === 'converting' || status === 'uploading') icon = <Loader2 className="size-4 animate-spin text-lavender" strokeWidth={1.75} />
+  else if (status === 'waiting') icon = <CircleDashed className="size-4 text-fg-3" strokeWidth={1.5} />
+  else icon = <span className="text-xs text-fg-3">—</span>
+  return <span title={label} role="img" aria-label={label}>{icon}</span>
 }
 
 function OverallProgress({
@@ -547,37 +592,32 @@ function OverallProgress({
   const done = batch?.finished ?? 0
   const total = batch?.total ?? count
   return (
-    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mb-4 rounded-2xl border border-violet/30 bg-violet/[0.06] p-4" aria-live="polite">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
+    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-line p-5" aria-live="polite">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-semibold">
-            {uploading ? `Uploading ${count} ${count === 1 ? 'file' : 'files'}…` : `${done} / ${total} files completed`}
+            {uploading ? `Uploading ${count} ${count === 1 ? 'file' : 'files'}…` : `Converting · ${done} of ${total} done`}
           </p>
           <p className="mt-0.5 truncate text-xs text-fg-2">
             {uploading
-              ? 'Files are sent over your connection to the conversion service'
+              ? 'Sending your files securely'
               : batch?.current
-                ? <>Converting <span className="text-fg">{batch.current}</span></>
-                : batch?.status === 'queued' ? 'Queued — waiting for a free converter' : 'Working…'}
+                ? <>Now: <span className="text-fg">{batch.current}</span></>
+                : 'Getting ready…'}
+            {!uploading && batch && batch.counts.failed > 0 && <span className="text-danger"> · {batch.counts.failed} failed</span>}
+            {!uploading && batch?.eta_seconds != null && <span> · ~{duration(batch.eta_seconds)} left</span>}
           </p>
         </div>
-        <div className="flex items-center gap-4 text-xs">
-          {!uploading && batch && (
-            <>
-              <span className="text-success">{batch.counts.completed} succeeded</span>
-              {batch.counts.failed > 0 && <span className="text-danger">{batch.counts.failed} failed</span>}
-              {batch.eta_seconds != null && <span className="text-fg-2">~{duration(batch.eta_seconds)} left</span>}
-            </>
-          )}
-          <span className="font-mono text-sm font-semibold text-lavender tabular-nums">{pct}%</span>
-          <button onClick={onCancel} className="rounded-lg px-2.5 py-1 text-xs font-medium text-fg-2 ring-1 ring-line transition-colors hover:text-danger hover:ring-danger/40">
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="text-2xl font-light tracking-tight text-fg tabular-nums">{pct}<span className="text-sm text-fg-3">%</span></span>
+          <button onClick={onCancel} className="rounded-full px-3 py-1 text-xs font-medium text-fg-3 ring-1 ring-line transition-colors hover:text-danger hover:ring-danger/40">
             Cancel
           </button>
         </div>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Overall progress">
+      <div className="h-[3px] rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Overall progress">
         <motion.div
-          className="progress-stripes h-full rounded-full bg-gradient-to-r from-violet to-purple"
+          className="h-full rounded-full bg-gradient-to-r from-violet via-purple to-fuchsia-400 shadow-[0_0_14px_2px_rgba(168,85,247,0.7)]"
           initial={false}
           animate={{ width: `${Math.max(pct, 2)}%` }}
           transition={{ type: 'spring', stiffness: 120, damping: 24 }}
