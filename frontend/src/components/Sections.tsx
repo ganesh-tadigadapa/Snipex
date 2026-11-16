@@ -34,8 +34,8 @@ export function Nav() {
   }
   return (
     <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${scrolled || open ? 'glass border-b border-line' : 'border-b border-transparent'}`}>
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6" aria-label="Main">
-        <Logo />
+      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6" aria-label="Main">
+        <Logo className={`transition-opacity duration-300 ${scrolled || open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} />
         <ul className="hidden items-center gap-1 md:flex">
           {NAV.map(([label, href]) => (
             <li key={href}>
