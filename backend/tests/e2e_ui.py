@@ -35,6 +35,9 @@ with sync_playwright() as p:
         page.get_by_role("link", name="Download All as ZIP").click()
     zpath = out / "all.zip"; dl.value.save_as(zpath)
     print("ZIP:", zipfile.ZipFile(zpath).namelist())
+    # Back to the homepage (the converter is a focused view while files are loaded)
+    page.get_by_role("button", name="Convert More Files").click()
+    page.wait_for_selector("#tools")
     # Advanced tool: merge two PDFs
     page.get_by_role("button", name=re.compile("^Merge PDF")).click()
     import shutil; second = out / "samples" / "appendix.pdf"; shutil.copyfile(s["pdf"], second)
