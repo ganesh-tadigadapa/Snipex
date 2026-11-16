@@ -46,14 +46,16 @@ const CATEGORY_STYLE: Record<string, { icon: typeof File; tint: string }> = {
 }
 
 export function FileIcon({ category, ext, size = 'md' }: { category: Category | null; ext: string; size?: 'sm' | 'md' }) {
-  const style = (category && CATEGORY_STYLE[category]) || { icon: File, tint: 'text-fg-3 bg-fg-3/10 ring-fg-3/20' }
-  const Icon = style.icon
+  const Icon = (category && CATEGORY_STYLE[category]?.icon) || File
   const box = size === 'sm' ? 'size-8 rounded-lg' : 'size-10 rounded-xl'
   return (
-    <div className={`relative grid shrink-0 place-items-center ring-1 ${box} ${style.tint}`} aria-hidden>
-      <Icon className={size === 'sm' ? 'size-4' : 'size-[18px]'} strokeWidth={1.75} />
+    <div
+      className={`relative grid shrink-0 place-items-center bg-gradient-to-b from-white/[0.06] to-white/[0.015] text-lavender ring-1 ring-white/10 light:from-black/[0.03] light:to-transparent light:ring-black/10 ${box}`}
+      aria-hidden
+    >
+      <Icon className={size === 'sm' ? 'size-4' : 'size-[18px]'} strokeWidth={1.5} />
       {ext && size === 'md' && (
-        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded bg-bg px-1 font-mono text-[8.5px] leading-[13px] tracking-wide uppercase ring-1 ring-line">
+        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-[4px] bg-bg px-1 font-mono text-[8px] leading-[12px] tracking-wider text-fg-3 uppercase ring-1 ring-line">
           {ext.slice(0, 4)}
         </span>
       )}
