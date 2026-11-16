@@ -74,6 +74,7 @@ export function DropZone({ onFiles, accept, compact, orb, disabled, children, ti
         <div className="orb-streak orb-streak-a" aria-hidden />
         <div className="orb-streak orb-streak-b" aria-hidden />
         <div className="orb-streak orb-streak-c" aria-hidden />
+        <div className="orb-orbit" aria-hidden />
         <motion.div
           role="button"
           tabIndex={disabled ? -1 : 0}
@@ -112,7 +113,7 @@ export function DropZone({ onFiles, accept, compact, orb, disabled, children, ti
           type="button"
           onClick={open}
           disabled={disabled}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-card-2 px-3 text-sm font-medium text-fg transition-colors hover:border-line-2 hover:bg-card disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line px-4 text-[13px] font-medium text-fg transition-colors hover:border-purple/60 hover:shadow-[0_0_18px_-6px_rgba(168,85,247,0.8)] disabled:opacity-50"
         >
           <Plus className="size-4" /> Add files
         </button>
