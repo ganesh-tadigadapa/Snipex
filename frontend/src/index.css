@@ -3,9 +3,9 @@
 @custom-variant light (&:where([data-theme=light], [data-theme=light] *));
 
 :root {
-  --bg: #08080d;
-  --bg-2: #101018;
-  --card: #14141d;
+  --bg: #050508;
+  --bg-2: #0b0b11;
+  --card: #101017;
   --card-2: #191924;
   --text: #ffffff;
   --text-2: #a1a1aa;
@@ -199,4 +199,119 @@ select {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ---- Premium hero ---------------------------------------------------------------------- */
+.text-gradient-hero {
+  background: linear-gradient(92deg, #8b5cf6 0%, #a855f7 40%, #c26cf5 70%, #e879f9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-frame {
+  background:
+    radial-gradient(70% 60% at 25% 50%, rgba(124, 58, 237, 0.10), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 40%),
+    var(--bg);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02) inset, 0 40px 120px -40px rgba(0, 0, 0, 0.8);
+}
+[data-theme="light"] .hero-frame {
+  background: radial-gradient(70% 60% at 25% 50%, rgba(124, 58, 237, 0.08), transparent 70%), var(--card);
+  box-shadow: 0 30px 80px -40px rgba(76, 29, 149, 0.25);
+}
+
+.orb-ring {
+  background: radial-gradient(circle at 50% 45%, #0a0811 0%, #07060c 62%, #140a26 100%);
+  border: 1.5px solid rgba(221, 205, 255, 0.9);
+  box-shadow:
+    0 0 0 1px rgba(168, 85, 247, 0.35),
+    0 0 22px 2px rgba(168, 85, 247, 0.6),
+    0 0 90px 12px rgba(124, 58, 237, 0.35),
+    inset 0 0 36px rgba(139, 92, 246, 0.4),
+    inset 0 0 140px rgba(124, 58, 237, 0.14);
+  transition: box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.orb-ring:hover,
+.orb-ring.is-over {
+  border-color: #f3ecff;
+  box-shadow:
+    0 0 0 1px rgba(168, 85, 247, 0.5),
+    0 0 30px 4px rgba(168, 85, 247, 0.8),
+    0 0 130px 24px rgba(124, 58, 237, 0.45),
+    inset 0 0 50px rgba(139, 92, 246, 0.55),
+    inset 0 0 160px rgba(124, 58, 237, 0.22);
+}
+[data-theme="light"] .orb-ring {
+  background: radial-gradient(circle at 50% 45%, #ffffff 0%, #faf7ff 62%, #efe6ff 100%);
+  border-color: rgba(124, 58, 237, 0.65);
+}
+
+.orb-haze {
+  position: absolute;
+  inset: -4%;
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, rgba(124, 58, 237, 0.28), rgba(124, 58, 237, 0.08) 70%, transparent 100%);
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+.orb-streak {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: orbit 16s linear infinite;
+}
+.orb-streak-a {
+  inset: 2%;
+  background: conic-gradient(from 210deg, transparent 0deg, rgba(196, 150, 255, 0) 8deg, rgba(232, 214, 255, 0.95) 46deg, rgba(168, 85, 247, 0.55) 80deg, transparent 115deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 84%, #000 90%, #000 94%, transparent 100%);
+  mask: radial-gradient(circle closest-side, transparent 84%, #000 90%, #000 94%, transparent 100%);
+  filter: blur(5px);
+}
+.orb-streak-b {
+  inset: -5%;
+  background: conic-gradient(from 20deg, transparent 0deg, rgba(196, 140, 255, 1) 40deg, rgba(139, 92, 246, 0.6) 85deg, transparent 125deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 72%, #000 84%, transparent 100%);
+  mask: radial-gradient(circle closest-side, transparent 72%, #000 84%, transparent 100%);
+  filter: blur(10px);
+  animation-duration: 24s;
+}
+.orb-streak-c {
+  inset: -9%;
+  background: conic-gradient(from 240deg, transparent 0deg, rgba(139, 92, 246, 0.55) 30deg, transparent 75deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 66%, #000 80%, transparent 100%);
+  mask: radial-gradient(circle closest-side, transparent 66%, #000 80%, transparent 100%);
+  filter: blur(22px);
+  animation-duration: 34s;
+  animation-direction: reverse;
+}
+.orb-ring::after {
+  /* thin bright highlight that sweeps around the rim */
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(from 300deg, transparent 0deg, rgba(255, 255, 255, 0.95) 30deg, rgba(216, 180, 254, 0.6) 60deg, transparent 95deg);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 97%, #000 99%);
+  mask: radial-gradient(circle closest-side, transparent 97%, #000 99%);
+  filter: blur(1px);
+  animation: orbit 9s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes orbit {
+  to { transform: rotate(360deg); }
+}
+
+.format-tile {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+  border: 1px solid var(--border);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.format-tile:hover {
+  border-color: rgba(168, 85, 247, 0.55);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -12px rgba(124, 58, 237, 0.55);
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.1), rgba(168, 85, 247, 0.02));
 }
