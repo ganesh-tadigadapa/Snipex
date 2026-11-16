@@ -10,16 +10,18 @@ import { getTheme, history, setTheme, type HistoryEntry } from '../lib/storage'
 import { GITHUB_URL, GithubMark } from './Hero'
 import { Logo, SectionHeading, useToast } from './ui'
 
-const NAV = [
-  ['Convert', '#convert'],
-  ['Supported Formats', '#formats'],
-  ['Features', '#features'],
-  ['How It Works', '#how'],
-  ['Tools', '#tools'],
+export type Page = 'home' | 'tools'
+
+const PAGES: [Page, string, string][] = [
+  ['home', 'Converter', '#/'],
+  ['tools', 'Tools', '#/tools'],
+]
+const SECTION_LINKS = [
+  ['Formats', '#formats'],
   ['FAQ', '#faq'],
 ] as const
 
-export function Nav({ focused = false }: { focused?: boolean }) {
+export function Nav({ focused = false, page }: { focused?: boolean; page: Page }) {
   const [theme, setT] = useState(getTheme)
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -36,22 +38,42 @@ export function Nav({ focused = false }: { focused?: boolean }) {
   }
   return (
     <header className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${scrolled || open ? 'glass border-b border-line' : 'border-b border-transparent'}`}>
-      <nav className="wrap grid h-[68px] grid-cols-[1fr_auto] items-center md:grid-cols-[1fr_auto_1fr]" aria-label="Main">
+      <nav className="wrap grid h-[68px] grid-cols-[1fr_auto_1fr] items-center" aria-label="Main">
         <Logo />
-        <ul aria-hidden={focused || undefined} className={`hidden items-center gap-0.5 rounded-full border border-line bg-card/40 p-1 backdrop-blur-md transition-opacity duration-300 md:flex ${focused ? 'invisible opacity-0' : ''}`}>
-          {NAV.map(([label, href]) => (
-            <li key={href}>
-              <a href={href} className="block rounded-full px-3.5 py-1.5 text-[13.5px] text-fg-2 transition-colors hover:bg-white/[0.06] hover:text-fg light:hover:bg-black/[0.04]">{label}</a>
-            </li>
+        {/* Page switch: page 1 = converter, page 2 = tools */}
+        <div
+          role="tablist"
+          aria-label="Pages"
+          className={`flex items-center gap-0.5 rounded-full border border-line bg-card/40 p-1 backdrop-blur-md transition-opacity duration-300 ${focused ? 'invisible opacity-0' : ''}`}
+        >
+          {PAGES.map(([p, label, href]) => (
+            <a
+              key={p}
+              href={href}
+              role="tab"
+              aria-selected={page === p}
+              className={`relative rounded-full px-4 py-1.5 text-[13.5px] font-medium transition-colors sm:px-5 ${page === p ? 'text-fg' : 'text-fg-2 hover:text-fg'}`}
+            >
+              {page === p && (
+                <motion.span
+                  layoutId="page-pill"
+                  className="absolute inset-0 rounded-full bg-violet/20 ring-1 ring-purple/60 shadow-[0_0_20px_-6px_rgba(168,85,247,0.9)]"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative">{label}</span>
+            </a>
           ))}
-        </ul>
-        <div className="flex items-center justify-end gap-2">
+        </div>
+        <div className="flex items-center justify-end gap-1 sm:gap-2">
+          <div className={`hidden items-center md:flex ${focused ? 'invisible' : ''}`}>
+            {SECTION_LINKS.map(([label, href]) => (
+              <a key={href} href={href} className="rounded-full px-3 py-1.5 text-[13.5px] text-fg-2 transition-colors hover:text-fg">{label}</a>
+            ))}
+          </div>
           <button onClick={toggle} className="grid size-9 place-items-center rounded-full border border-line text-fg-2 transition-colors hover:border-line-2 hover:text-fg" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
             {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
-          <a href="#convert" className={`btn-primary hidden h-9 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-semibold ${focused ? '' : 'sm:inline-flex'}`}>
-            Get Started <ArrowRight className="size-3.5" />
-          </a>
           <button onClick={() => setOpen(!open)} className={`size-9 place-items-center rounded-full border border-line text-fg-2 md:hidden ${focused ? 'hidden' : 'grid'}`} aria-label="Toggle menu" aria-expanded={open}>
             {open ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
@@ -60,12 +82,9 @@ export function Nav({ focused = false }: { focused?: boolean }) {
       <AnimatePresence>
         {open && (
           <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="wrap overflow-hidden md:hidden">
-            {NAV.map(([label, href]) => (
+            {SECTION_LINKS.map(([label, href]) => (
               <li key={href}><a onClick={() => setOpen(false)} href={href} className="block border-t border-line py-3 text-sm text-fg-2">{label}</a></li>
             ))}
-            <li className="border-t border-line py-3">
-              <a onClick={() => setOpen(false)} href="#convert" className="btn-primary flex h-10 items-center justify-center rounded-lg text-sm font-semibold">Get Started</a>
-            </li>
           </motion.ul>
         )}
       </AnimatePresence>
@@ -318,7 +337,7 @@ export function Footer() {
           <br />
           <span className="text-gradient">SNIPEX gets it converted.</span>
         </p>
-        <a href="#convert" className="btn-primary relative mt-8 inline-flex h-12 items-center gap-2 rounded-xl px-6 font-semibold">
+        <a href="#/" className="btn-primary relative mt-8 inline-flex h-12 items-center gap-2 rounded-xl px-6 font-semibold">
           Start converting <ArrowRight className="size-4" />
         </a>
       </div>
@@ -328,6 +347,7 @@ export function Footer() {
           <span className="text-fg-3">v1.0.0</span>
         </div>
         <nav className="flex items-center gap-6" aria-label="Footer">
+          <a href="#/tools" className="transition-colors hover:text-fg">Tools</a>
           <a href="#formats" className="transition-colors hover:text-fg">Supported Formats</a>
           <a href="#faq" className="transition-colors hover:text-fg">Privacy</a>
           <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 transition-colors hover:text-fg">

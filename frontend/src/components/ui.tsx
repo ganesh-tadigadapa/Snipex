@@ -30,7 +30,7 @@ export function Logo({ className = '', size = 'md' }: { className?: string; size
   return (
     <a href="#top" className={`flex items-center gap-3 font-semibold ${className}`} aria-label="SNIPEX home">
       <OrbitMark className={size === 'lg' ? 'size-11' : 'size-8'} />
-      <span className={size === 'lg' ? 'text-[26px] tracking-[0.22em]' : 'text-[15px] tracking-[0.2em]'}>SNIPEX</span>
+      <span className={size === 'lg' ? 'text-[26px] tracking-[0.22em]' : 'hidden text-[15px] tracking-[0.2em] sm:inline'}>SNIPEX</span>
     </a>
   )
 }
