@@ -68,7 +68,7 @@ export function DropZone({ onFiles, accept, compact, orb, disabled, children, ti
 
   if (orb) {
     return (
-      <div {...events} className="relative mx-auto aspect-square w-full max-w-[540px]">
+      <div {...events} className="relative mx-auto aspect-square w-full max-w-[min(540px,62svh)]">
         {inputEl}
         <div className="orb-haze" aria-hidden />
         <div className="orb-streak orb-streak-a" aria-hidden />
