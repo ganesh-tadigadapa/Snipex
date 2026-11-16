@@ -38,8 +38,11 @@ class Settings:
     max_files_per_batch: int = field(default_factory=lambda: _int("SNIPEX_MAX_FILES", 30))
     max_file_mb: int = field(default_factory=lambda: _int("SNIPEX_MAX_FILE_MB", 100))
     max_batch_mb: int = field(default_factory=lambda: _int("SNIPEX_MAX_BATCH_MB", 500))
-    # Number of conversions that may run at the same time (each one is its own OS process).
-    max_workers: int = field(default_factory=lambda: _int("SNIPEX_WORKERS", max(2, min(4, (os.cpu_count() or 2) // 2))))
+    # Parallel lightweight conversions (images, PDF, data): each one is its own OS process.
+    max_workers: int = field(default_factory=lambda: _int("SNIPEX_WORKERS", max(2, min(8, os.cpu_count() or 2))))
+    # Parallel LibreOffice instances (memory-heavy). Each converts a group of files per launch.
+    office_workers: int = field(default_factory=lambda: _int("SNIPEX_OFFICE_WORKERS", max(1, min(4, (os.cpu_count() or 2) // 2))))
+    office_group_size: int = field(default_factory=lambda: _int("SNIPEX_OFFICE_GROUP", 6))
     conversion_timeout_s: int = field(default_factory=lambda: _int("SNIPEX_TIMEOUT", 180))
     max_attempts: int = field(default_factory=lambda: _int("SNIPEX_MAX_ATTEMPTS", 2))
     # Batches (uploads + outputs) are deleted this many seconds after creation.
