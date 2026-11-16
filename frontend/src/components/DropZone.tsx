@@ -1,11 +1,12 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, UploadCloud } from 'lucide-react'
+import { FileUp, Plus, Upload, UploadCloud } from 'lucide-react'
 
 interface Props {
   onFiles: (files: File[]) => void
   accept?: string
   compact?: boolean
+  orb?: boolean
   disabled?: boolean
   children?: ReactNode
   title?: string
@@ -13,7 +14,7 @@ interface Props {
 }
 
 /** Multi-file drag & drop zone backed by a native <input type="file" multiple>. */
-export function DropZone({ onFiles, accept, compact, disabled, children, title, subtitle }: Props) {
+export function DropZone({ onFiles, accept, compact, orb, disabled, children, title, subtitle }: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [over, setOver] = useState(false)
   const depth = useRef(0)
@@ -64,6 +65,44 @@ export function DropZone({ onFiles, accept, compact, disabled, children, title, 
       }}
     />
   )
+
+  if (orb) {
+    return (
+      <div {...events} className="relative mx-auto aspect-square w-full max-w-[540px]">
+        {inputEl}
+        <div className="orb-haze" aria-hidden />
+        <div className="orb-streak orb-streak-a" aria-hidden />
+        <div className="orb-streak orb-streak-b" aria-hidden />
+        <div className="orb-streak orb-streak-c" aria-hidden />
+        <motion.div
+          role="button"
+          tabIndex={disabled ? -1 : 0}
+          aria-label="Upload files: drop files here or press Enter to browse"
+          onClick={open}
+          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
+          animate={{ scale: over ? 1.035 : 1 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+          className={`orb-ring group absolute inset-[7%] grid cursor-pointer place-items-center rounded-full text-center ${over ? 'is-over' : ''}`}
+        >
+          <div className="px-8">
+            <motion.div
+              animate={over ? { y: -8, scale: 1.08 } : { y: [0, -6, 0] }}
+              transition={over ? { type: 'spring', stiffness: 300 } : { duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="mx-auto w-fit"
+            >
+              <FileUp className="size-14 text-[#C4B5FD] drop-shadow-[0_0_18px_rgba(168,85,247,0.55)]" strokeWidth={1.4} />
+            </motion.div>
+            <p className="mt-6 text-lg font-semibold tracking-tight sm:text-[22px]">{over ? 'Release to add your files' : title ?? 'Drag and drop your files here'}</p>
+            <p className="mt-1.5 text-sm text-fg-2 sm:text-base">{subtitle ?? 'or click to browse files'}</p>
+            <span className="mt-7 inline-flex h-12 items-center gap-2.5 rounded-xl bg-white px-6 text-[15px] font-semibold text-black shadow-[0_10px_40px_-8px_rgba(168,85,247,0.7)] transition-transform group-hover:-translate-y-0.5 light:bg-[#0b0b12] light:text-white">
+              <Upload className="size-[18px]" strokeWidth={2.2} /> Upload Files
+            </span>
+            {children && <div className="mt-6 text-xs text-fg-2 sm:text-[13px]">{children}</div>}
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
 
   if (compact) {
     return (
