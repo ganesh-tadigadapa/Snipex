@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, ChevronDown, FileText, Image as ImageIcon, LayoutGrid, Lock, RefreshCw } from 'lucide-react'
 import type { Capabilities } from '../lib/api'
@@ -36,20 +36,25 @@ interface Props {
   error: string | null
   onRetry: () => void
   onHistoryChange: () => void
+  onFocusChange?: (focused: boolean) => void
 }
 
 const ease = [0.22, 1, 0.36, 1] as const
 
-export function Hero({ caps, error, onRetry, onHistoryChange }: Props) {
+export function Hero({ caps, error, onRetry, onHistoryChange, onFocusChange }: Props) {
   const [active, setActive] = useState(false)
+  useEffect(() => {
+    onFocusChange?.(active)
+    if (active) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [active, onFocusChange])
 
   return (
-    <section id="convert" className="hero-frame relative flex min-h-[100svh] flex-col overflow-hidden">
+    <section id="convert" className="hero-frame relative flex min-h-[100svh] flex-col overflow-clip">
       <div className="grid-lines pointer-events-none absolute inset-0 opacity-25" aria-hidden />
 
       <div
         className={`wrap relative grid flex-1 items-center gap-12 pt-28 pb-16 lg:gap-10 ${
-          active ? 'grid-cols-1 content-start lg:pt-32' : 'lg:grid-cols-2 lg:pt-24 lg:pb-20'
+          active ? 'grid-cols-1 content-start gap-6 pt-20 pb-6 lg:pt-20' : 'lg:grid-cols-2 lg:pt-24 lg:pb-20'
         }`}
       >
         {/* Copy */}
@@ -82,7 +87,7 @@ export function Hero({ caps, error, onRetry, onHistoryChange }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.05, ease }}
             className={`font-bold tracking-[-0.045em] ${
-              active ? 'text-3xl leading-tight sm:text-[40px]' : 'mt-7 text-[48px] leading-[0.98] sm:text-7xl lg:text-[clamp(60px,7.6svh,88px)]'
+              active ? 'text-[26px] leading-tight sm:text-[32px]' : 'mt-7 text-[48px] leading-[0.98] sm:text-7xl lg:text-[clamp(60px,7.6svh,88px)]'
             }`}
           >
             Convert Files{active ? ' ' : <br />}
