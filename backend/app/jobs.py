@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import secrets
 import shutil
@@ -61,6 +62,8 @@ class Task:
     error: str | None = None
     output: Output | None = None
     attempts: int = 0
+    office: bool = False         # runs on a LibreOffice slot (grouped) instead of the fast lane
+    solo: bool = False           # retry outside of a group
     started_at: float | None = None
     finished_at: float | None = None
 
@@ -94,6 +97,7 @@ class JobManager:
         self._lo_slots: asyncio.Queue[int] | None = None
         self._cleanup_task: asyncio.Task | None = None
         self._bg: set[asyncio.Task] = set()
+        self._office_q: list[tuple[Batch, Task]] = []
 
     # ---- lifecycle -------------------------------------------------------------------------
     async def start(self) -> None:
@@ -105,9 +109,12 @@ class JobManager:
         (root / "lo-profiles").mkdir(mode=0o700, exist_ok=True)
         self._sem = asyncio.Semaphore(settings.max_workers)
         self._lo_slots = asyncio.Queue()
-        for i in range(settings.max_workers):
+        for i in range(settings.office_workers):
             self._lo_slots.put_nowait(i)
         self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        if settings.soffice:
+            for _ in range(settings.office_workers):
+                self._spawn_bg(self._warm_slot())
 
     async def stop(self) -> None:
         if self._cleanup_task:
@@ -127,11 +134,19 @@ class JobManager:
         batch = Batch(batch_id, secrets.token_urlsafe(24), kind, batch_dir, time.time(), tasks)
         self.batches[batch_id] = batch
         for task in tasks:
-            if task.status == WAITING:
-                t = asyncio.create_task(self._run_task(batch, task))
-                self._bg.add(t)
-                t.add_done_callback(self._bg.discard)
+            if task.status != WAITING:
+                continue
+            if task.office:
+                self._office_q.append((batch, task))
+            else:
+                self._spawn_bg(self._run_task(batch, task))
+        self._pump_office()
         return batch
+
+    def _spawn_bg(self, coro) -> None:
+        t = asyncio.create_task(coro)
+        self._bg.add(t)
+        t.add_done_callback(self._bg.discard)
 
     def get(self, batch_id: str, token: str | None) -> Batch | None:
         batch = self.batches.get(batch_id)
@@ -147,11 +162,7 @@ class JobManager:
                 task.attempts += 1
                 task.status = CONVERTING
                 task.started_at = task.started_at or time.time()
-                slot = await self._lo_slots.get()
-                try:
-                    result = await self._exec(batch, task, slot)
-                finally:
-                    self._lo_slots.put_nowait(slot)
+                result = await self._exec(batch, task)
                 if batch.cancelled:
                     task.status = CANCELLED
                     break
@@ -167,23 +178,107 @@ class JobManager:
                 task.status = CANCELLED
             task.finished_at = time.time()
 
-    async def _exec(self, batch: Batch, task: Task, slot: int) -> dict:
-        out_dir = batch.dir / "out" / task.id
+    async def _exec(self, batch: Batch, task: Task) -> dict:
         spec = {
             "op": task.op,
             "inputs": [str(i.path) for i in task.inputs],
             "src_format": task.inputs[0].format,
             "dst": task.target,
-            "out_dir": str(out_dir),
+            "out_dir": str(batch.dir / "out" / task.id),
             "stem": task.stem,
-            "options": {
-                **task.options,
-                "_soffice": settings.soffice,
-                "_lo_profile": str(settings.storage_dir / "lo-profiles" / f"slot-{slot}"),
-                "_timeout": settings.conversion_timeout_s - 5,
-            },
+            "options": {**task.options, "_soffice": settings.soffice, "_timeout": settings.conversion_timeout_s - 5},
         }
-        spec_path = batch.dir / f"{task.id}.spec.json"
+        return await self._spawn(batch, task.id, spec, settings.conversion_timeout_s)
+
+    # ---- LibreOffice lane: grouped conversions on warm, persistent profiles ------------------
+    def _pump_office(self) -> None:
+        """Start office groups while LibreOffice slots are free."""
+        assert self._lo_slots is not None
+        self._office_q = [(b, t) for b, t in self._office_q if t.status == WAITING and not b.cancelled]
+        while self._office_q and not self._lo_slots.empty():
+            slot = self._lo_slots.get_nowait()
+            batch, head = self._office_q[0]
+            if head.solo:
+                group = [self._office_q.pop(0)]
+            else:
+                # Spread work across all slots, then cap the group size.
+                size = max(1, min(settings.office_group_size, math.ceil(len(self._office_q) / settings.office_workers)))
+                key = (batch.id, head.target, head.inputs[0].format == "csv")
+                group, rest = [], []
+                for item in self._office_q:
+                    b, t = item
+                    if len(group) < size and not t.solo and (b.id, t.target, t.inputs[0].format == "csv") == key:
+                        group.append(item)
+                    else:
+                        rest.append(item)
+                self._office_q = rest
+            self._spawn_bg(self._run_office_group(slot, batch, [t for _, t in group]))
+
+    async def _run_office_group(self, slot: int, batch: Batch, tasks: list[Task]) -> None:
+        assert self._lo_slots is not None
+        group_id = "g" + uuid.uuid4().hex[:11]
+        retry: list[Task] = []
+        try:
+            if batch.cancelled:
+                return
+            for t in tasks:
+                t.attempts += 1
+                t.status = CONVERTING
+                t.started_at = t.started_at or time.time()
+            timeout = settings.conversion_timeout_s + 30 * (len(tasks) - 1)
+            spec = {
+                "op": "office_group",
+                "dst": tasks[0].target,
+                "out_dir": str(batch.dir / "out" / group_id),
+                "items": [{"id": t.id, "input": str(t.inputs[0].path), "stem": t.stem, "out_dir": str(batch.dir / "out" / t.id)}
+                          for t in tasks],
+                "options": {"_soffice": settings.soffice, "_timeout": timeout - 5,
+                            "_lo_profile": str(settings.storage_dir / "lo-profiles" / f"slot-{slot}")},
+            }
+            result = await self._spawn(batch, group_id, spec, timeout)
+            shutil.rmtree(batch.dir / "out" / group_id, ignore_errors=True)
+            outputs = result.get("outputs") if result.get("ok") else None
+            for t in tasks:
+                if batch.cancelled:
+                    t.status = CANCELLED
+                elif outputs and outputs.get(t.id):
+                    self._finish(batch, t, [Path(p) for p in outputs[t.id]])
+                elif len(tasks) > 1 or (result.get("recoverable") and t.attempts < settings.max_attempts):
+                    retry.append(t)  # isolate it: one bad file must not fail the others
+                else:
+                    t.status = FAILED
+                    t.error = (result.get("error") if not result.get("ok") else None) or "LibreOffice could not convert this file"
+                if t.status in TERMINAL:
+                    t.finished_at = time.time()
+        finally:
+            for t in retry:
+                t.status, t.solo = WAITING, True
+            self._office_q[:0] = [(batch, t) for t in retry]
+            self._lo_slots.put_nowait(slot)
+            self._pump_office()
+
+    async def _warm_slot(self) -> None:
+        """Initialise a LibreOffice profile at start-up so the first conversion doesn't pay for it."""
+        assert self._lo_slots is not None
+        slot = await self._lo_slots.get()
+        try:
+            profile = settings.storage_dir / "lo-profiles" / f"slot-{slot}"
+            proc = await asyncio.create_subprocess_exec(
+                settings.soffice, f"-env:UserInstallation={profile.resolve().as_uri()}",
+                "--headless", "--norestore", "--nologo", "--terminate_after_init",
+                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+                env={**os.environ, "SAL_USE_VCLPLUGIN": "svp", "HOME": str(profile)}, start_new_session=True,
+            )
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=60)
+            except asyncio.TimeoutError:
+                _kill_group(proc)
+        finally:
+            self._lo_slots.put_nowait(slot)
+            self._pump_office()
+
+    async def _spawn(self, batch: Batch, key: str, spec: dict, timeout: float) -> dict:
+        spec_path = batch.dir / f"{key}.spec.json"
         spec_path.write_text(json.dumps(spec))
         proc = await asyncio.create_subprocess_exec(
             settings.python, "-s", "-m", "app.worker", str(spec_path),
@@ -195,15 +290,15 @@ class JobManager:
             start_new_session=True,  # own process group so cancel/timeout kills LibreOffice children too
             preexec_fn=_limit_resources if sys.platform != "win32" else None,
         )
-        batch.procs[task.id] = proc
+        batch.procs[key] = proc
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=settings.conversion_timeout_s)
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
             _kill_group(proc)
             await proc.wait()
-            return {"ok": False, "error": f"Conversion timed out after {settings.conversion_timeout_s}s", "recoverable": False}
+            return {"ok": False, "error": f"Conversion timed out after {int(timeout)}s", "recoverable": False}
         finally:
-            batch.procs.pop(task.id, None)
+            batch.procs.pop(key, None)
             spec_path.unlink(missing_ok=True)
         lines = [ln for ln in stdout.decode(errors="replace").splitlines() if ln.startswith("{")]
         if not lines:
@@ -212,7 +307,7 @@ class JobManager:
             return {"ok": False, "error": "Converter crashed while processing this file", "recoverable": True}
         result = json.loads(lines[-1])
         if not result.get("ok") and result.get("trace"):
-            print(f"[snipex] task {task.id} failed:\n{result['trace']}", file=sys.stderr)
+            print(f"[snipex] {key} failed:\n{result['trace']}", file=sys.stderr)
         return result
 
     def _finish(self, batch: Batch, task: Task, files: list[Path]) -> None:
@@ -257,6 +352,7 @@ class JobManager:
             if t.status == WAITING:
                 t.status = CANCELLED
                 t.finished_at = time.time()
+        self._office_q = [(b, t) for b, t in self._office_q if b is not batch]
 
     async def delete(self, batch_id: str) -> None:
         batch = self.batches.pop(batch_id, None)
